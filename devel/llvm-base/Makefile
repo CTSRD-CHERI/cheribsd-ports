@@ -34,10 +34,9 @@ do-build:
 	# Do nothing, we can't use DO_BUILD becaue we need SUB_FILES
 
 do-install:
+.for c in ${COMMANDS}
 	${INSTALL_SCRIPT} ${WRKDIR}/wrapper.sh \
-	    ${STAGEDIR}${PREFIX}/bin/cc
-.for c in ${COMMANDS:Ncc}
-	    ${LN} -s cc ${STAGEDIR}${PREFIX}/bin/${c}
+	    ${STAGEDIR}${PREFIX}/bin/${c}
 .endfor
 
 .include <bsd.port.mk>
