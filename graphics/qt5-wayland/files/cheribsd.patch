@@ -21,3 +21,19 @@ diff -ru work/kde-qtwayland-5.15.5p39/src/hardwareintegration/compositor/xcompos
      if (surface == EGL_NO_SURFACE) {
          qDebug() << "Failed to create eglsurface" << pixmap << compositorBuffer->window();
      }
+--- src/client/qwaylanddisplay.cpp.orig	2022-06-20 21:17:21.000000000 +0100
++++ src/client/qwaylanddisplay.cpp	2023-01-17 18:41:55.705288000 +0000
+@@ -377,11 +377,11 @@
+ #if QT_CONFIG(cursor)
+     qDeleteAll(mCursorThemes);
+ #endif
+-    if (mDisplay)
+-        wl_display_disconnect(mDisplay);
+ 
+     if (m_frameEventQueue)
+         wl_event_queue_destroy(m_frameEventQueue);
++    if (mDisplay)
++        wl_display_disconnect(mDisplay);
+ }
+ 
+ // Steps which is called just after constructor. This separates registry_global() out of the constructor
