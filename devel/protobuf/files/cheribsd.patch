@@ -55,3 +55,20 @@
                "Field entry is too big.");
  
  template <size_t kFastTableSizeLog2, size_t kNumFieldEntries = 0,
+--- ./src/google/protobuf/map.h.orig	2022-04-21 20:47:49.000000000 +0100
++++ ./src/google/protobuf/map.h	2023-04-05 14:28:49.627957000 +0100
+@@ -118,10 +118,14 @@
+   MapAllocator(const MapAllocator<X>& allocator)  // NOLINT(runtime/explicit)
+       : arena_(allocator.arena()) {}
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static_assert(alignof(value_type) <= sizeof(max_align_t), "");
++#else
+   // MapAllocator does not support alignments beyond 8. Technically we should
+   // support up to std::max_align_t, but this fails with ubsan and tcmalloc
+   // debug allocation logic which assume 8 as default alignment.
+   static_assert(alignof(value_type) <= 8, "");
++#endif
+ 
+   pointer allocate(size_type n, const void* /* hint */ = nullptr) {
+     // If arena is not given, malloc needs to be called which doesn't
