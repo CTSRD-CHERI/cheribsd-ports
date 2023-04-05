@@ -99,3 +99,88 @@
    return ::new (AllocateBytes(sizeof(Type))) Type{};
  }
  
+--- src/google/protobuf/metadata_lite.h.orig	2022-04-21 20:47:49.000000000 +0100
++++ src/google/protobuf/metadata_lite.h	2023-04-05 15:44:42.885407000 +0100
+@@ -183,11 +183,19 @@
+   intptr_t ptr_;
+ 
+   // Tagged pointer implementation.
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static constexpr ptraddr_t kUnknownFieldsTagMask = 1;
++  static constexpr ptraddr_t kMessageOwnedArenaTagMask = 2;
++  static constexpr ptraddr_t kPtrTagMask =
++      kUnknownFieldsTagMask | kMessageOwnedArenaTagMask;
++  static constexpr ptraddr_t kPtrValueMask = ~kPtrTagMask;
++#else
+   static constexpr intptr_t kUnknownFieldsTagMask = 1;
+   static constexpr intptr_t kMessageOwnedArenaTagMask = 2;
+   static constexpr intptr_t kPtrTagMask =
+       kUnknownFieldsTagMask | kMessageOwnedArenaTagMask;
+   static constexpr intptr_t kPtrValueMask = ~kPtrTagMask;
++#endif
+ 
+   // Accessors for pointer tag and pointer value.
+   PROTOBUF_ALWAYS_INLINE bool HasUnknownFieldsTag() const {
+@@ -218,7 +226,11 @@
+       // Subtle: we want to preserve the message-owned arena flag, while at the
+       // same time replacing the pointer to Container<T> with a pointer to the
+       // arena.
++#if defined(__CHERI_PURE_CAPABILITY__)
++      ptraddr_t message_owned_arena_tag = ptr_ & kMessageOwnedArenaTagMask;
++#else
+       intptr_t message_owned_arena_tag = ptr_ & kMessageOwnedArenaTagMask;
++#endif
+       ptr_ = reinterpret_cast<intptr_t>(a) | message_owned_arena_tag;
+       return a;
+     } else {
+--- src/google/protobuf/arena_impl.h.orig	2022-04-21 20:47:48.000000000 +0100
++++ src/google/protobuf/arena_impl.h	2023-04-05 15:55:55.847283000 +0100
+@@ -121,7 +121,11 @@
+       : policy_(reinterpret_cast<uintptr_t>(policy)) {}
+ 
+   void set_policy(AllocationPolicy* policy) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++    ptraddr_t bits = policy_ & kTagsMask;
++#else
+     auto bits = policy_ & kTagsMask;
++#endif
+     policy_ = reinterpret_cast<uintptr_t>(policy) | bits;
+   }
+ 
+@@ -163,19 +167,36 @@
+     kRecordAllocs = 2,
+   };
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static constexpr ptraddr_t kTagsMask = 7;
++  static constexpr ptraddr_t kPtrMask = ~kTagsMask;
++#else
+   static constexpr uintptr_t kTagsMask = 7;
+   static constexpr uintptr_t kPtrMask = ~kTagsMask;
++#endif
+ 
+   template <uintptr_t kMask>
+   uintptr_t get_mask() const {
++#if defined(__CHERI_PURE_CAPABILITY__)
++    return policy_ & (ptraddr_t) kMask;
++#else
+     return policy_ & kMask;
++#endif
+   }
+   template <uintptr_t kMask>
+   void set_mask(bool v) {
+     if (v) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++      policy_ |= (ptraddr_t) kMask;
++#else
+       policy_ |= kMask;
++#endif
+     } else {
++#if defined(__CHERI_PURE_CAPABILITY__)
++      policy_ &= ~(ptraddr_t) kMask;
++#else
+       policy_ &= ~kMask;
++#endif
+     }
+   }
+   uintptr_t policy_;
