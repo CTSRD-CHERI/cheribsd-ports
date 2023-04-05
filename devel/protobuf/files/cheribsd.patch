@@ -72,3 +72,30 @@
  
    pointer allocate(size_type n, const void* /* hint */ = nullptr) {
      // If arena is not given, malloc needs to be called which doesn't
+--- ./src/google/protobuf/descriptor.cc.orig	2022-04-21 20:47:49.000000000 +0100
++++ ./src/google/protobuf/descriptor.cc	2023-04-05 14:50:14.020313000 +0100
+@@ -368,8 +368,12 @@
+     // We can't call PlanArray after FinalizePlanning has been called.
+     GOOGLE_CHECK(!has_allocated());
+     if (std::is_trivially_destructible<U>::value) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++      static_assert(alignof(U) <= sizeof(max_align_t), "");
++#else
+       // Trivial types are aligned to 8 bytes.
+       static_assert(alignof(U) <= 8, "");
++#endif
+       total_.template Get<char>() += RoundUpTo<8>(array_size * sizeof(U));
+     } else {
+       // Since we can't use `if constexpr`, just make the expression compile
+@@ -1806,7 +1810,11 @@
+ template <typename Type>
+ Type* DescriptorPool::Tables::Allocate() {
+   static_assert(std::is_trivially_destructible<Type>::value, "");
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static_assert(alignof(Type) <= sizeof(max_align_t), "");
++#else
+   static_assert(alignof(Type) <= 8, "");
++#endif
+   return ::new (AllocateBytes(sizeof(Type))) Type{};
+ }
+ 
