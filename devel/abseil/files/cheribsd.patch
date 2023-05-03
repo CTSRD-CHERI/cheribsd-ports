@@ -1,0 +1,2076 @@
+diff --git README-morello.md README-morello.md
+new file mode 100644
+index 00000000..e2f6128a
+--- /dev/null
++++ README-morello.md
+@@ -0,0 +1,112 @@
++# Background
++
++This software is an experimental Morello port of abseil release 20220623.1
++
++## Build instructions
++
++Abseil is build with CMake and Bazel. The bazel build is unsupported.
++
++First, install the build and test dependencies:
++
++`$ sudo pkg64 install cmake ninja`
++
++The abseil library can be built as follows:
++
++```
++$ cmake -B out -G Ninja
++    -DABSL_BUILD_TESTING=ON
++    -DABSL_USE_EXTERNAL_GOOGLETEST=ON
++    -DABSL_FIND_GOOGLETEST=ON
++    -DCMAKE_CXX_FLAGS='-fno-rtti'
++
++$ ninja -C out
++```
++
++## Library compartmentalization
++
++When using Library compartmentalisation, abseil must be build with the
++following flags: `-Xclang -morello-bounded-memargs=caller-only`.
++This can be done by adding the following line to your `/etc/make.conf` when building from the ports collection:
++
++```
++CFLAGS+=        -Xclang -morello-bounded-memargs=caller-only
++```
++
++Otherwise, add the same flag to the `-DCMAKE_CXX_FLAGS` options during configuration.
++
++The target program which will link to gRPC must use the c18n runtime linker, this can
++be done by adding the following linker flag:
++
++`-Wl,--dynamic-linker=/libexec/ld-elf-c18n.so.1`
++
++or can be changed after the binary has been created using patchelf:
++
++```
++$ patchelf --set-interpreter /libexec/ld-elf-c18n.so.1  path/to/binary
++```
++
++The change of runtime linker can be verified with `readelf -l`.
++
++## Unit testing
++
++Unit tests can be run as follows
++```
++$ cd out
++$ ctest
++```
++
++The following tests are expected to fail:
++
++```
++26 - absl_btree_test (Failed)
++    Has 2 failures related to tracking of operations in btrees and number of slots in leaf nodes.
++    For some reason the compile-time calculation of the number of slots per node goes wrong and the number of operations changes accordingly.
++    This does not seem to impact correctness.
++
++44 - absl_layout_test (Failed)
++    Fails because RTTI is disabled
++
++55 - absl_flags_flag_test (Failed)
++    Fails because of an unknown failure to detect an error condition in command line flag parsing.
++
++133 - absl_charconv_test (Failed)
++    Fails because of unknown issues with float/double NaN character conversion
++
++141 - absl_str_format_convert_test (Failed)
++    Fails because of issues with float and double hex conversion
++```
++
++
++## Notes and Limitations
++
++The following limitations concerning the CHERI compatibility of this software should be noted:
++
++1. Abseil is build without RTTI support, because of incomplete compiler support.
++   As a result, some tests have been disabled as they require RTTI. Software that relies on RTTI
++   may have issues with abseil.
++2. There are known limitations of the string formatting library that does not fully handle
++   certain capability and floating point formatting. Furthermore, the debugging library
++   is known to require CheriABI specific changes.
++3. Abseil contains a small allocator, as well as opportunities to narrow bounds via sub-object bounds.
++   This port does not implement any bounds narrowing, therefore the CHERI security benefit is
++   sub-optimal. The focus of this effort is to provide a starting point for a CheriABI abseil port.
++
++Adaptations to abseil to the memory-safe CheriABI have been driven by:
++compiler warnings and errors, and dynamic testing. Where the compiler
++emits a warning or error we are able to rigorously review this and
++correct. However, some issues only manifest dynamically (at runtime),
++such as invalidation of capabilities by pointer arithmetic,
++non-blessed memory copies, or insufficient pointer alignment.
++Enhancements such as CHERI UBsan have modestly improved the ability to
++identify problems previously only found during dynamic testing. However,
++ we are still greatly reliant on dynamic testing. This testing is
++constrained by both the completeness of the test suites (which in some
++cases provide poor coverage) and the time available within the project
++to perform testing. Whilst it is know that errors remain outside the
++core abseil library functionality we are not able to estimate what problems might
++remain beyond those resolved in the scope of the project.
++
++## Acknowledgement
++
++This work has been undertaken within DSTL contract
++ACC6036483: CHERI-based compartmentalisation for web services on Morello.
+diff --git absl/base/internal/hide_ptr.h absl/base/internal/hide_ptr.h
+index 1dba8090..47e03930 100644
+--- absl/base/internal/hide_ptr.h
++++ absl/base/internal/hide_ptr.h
+@@ -25,9 +25,15 @@ namespace base_internal {
+ 
+ // Arbitrary value with high bits set. Xor'ing with it is unlikely
+ // to map one valid pointer to another valid pointer.
++#if defined(__CHERI_PURE_CAPABILITY__)
++constexpr ptraddr_t HideMask() {
++  return ptraddr_t{0};
++}
++#else
+ constexpr uintptr_t HideMask() {
+   return (uintptr_t{0xF03A5F7BU} << (sizeof(uintptr_t) - 4) * 8) | 0xF03A5F7BU;
+ }
++#endif
+ 
+ // Hide a pointer from the leak checker. For internal use only.
+ // Differs from absl::IgnoreLeak(ptr) in that absl::IgnoreLeak(ptr) causes ptr
+diff --git absl/base/internal/low_level_alloc.cc absl/base/internal/low_level_alloc.cc
+index 229ab916..0c682648 100644
+--- absl/base/internal/low_level_alloc.cc
++++ absl/base/internal/low_level_alloc.cc
+@@ -62,6 +62,10 @@
+ #endif  // !MAP_ANONYMOUS
+ #endif  // __APPLE__
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <cheri/cheric.h>
++#endif
++
+ namespace absl {
+ ABSL_NAMESPACE_BEGIN
+ namespace base_internal {
+@@ -77,10 +81,14 @@ struct AllocList {
+   struct Header {
+     // Size of entire region, including this field. Must be
+     // first. Valid in both allocated and unallocated blocks.
+-    uintptr_t size;
++    size_t size;
+ 
+     // kMagicAllocated or kMagicUnallocated xor this.
++#ifdef __CHERI_PURE_CAPABILITY__
++    ptraddr_t magic;
++#else
+     uintptr_t magic;
++#endif
+ 
+     // Pointer to parent arena.
+     LowLevelAlloc::Arena *arena;
+@@ -273,8 +281,13 @@ LowLevelAlloc::Arena *LowLevelAlloc::DefaultArena() {
+ }
+ 
+ // magic numbers to identify allocated and unallocated blocks
++#ifdef __CHERI_PURE_CAPABILITY__
++static const ptraddr_t kMagicAllocated = 0x4c833e95U;
++static const ptraddr_t kMagicUnallocated = ~kMagicAllocated;
++#else
+ static const uintptr_t kMagicAllocated = 0x4c833e95U;
+ static const uintptr_t kMagicUnallocated = ~kMagicAllocated;
++#endif
+ 
+ namespace {
+ class ABSL_SCOPED_LOCKABLE ArenaLock {
+@@ -319,9 +332,15 @@ class ABSL_SCOPED_LOCKABLE ArenaLock {
+ 
+ // create an appropriate magic number for an object at "ptr"
+ // "magic" should be kMagicAllocated or kMagicUnallocated
++#ifdef __CHERI_PURE_CAPABILITY__
++inline static ptraddr_t Magic(ptraddr_t magic, AllocList::Header *ptr) {
++  return magic ^ reinterpret_cast<ptraddr_t>(ptr);
++}
++#else
+ inline static uintptr_t Magic(uintptr_t magic, AllocList::Header *ptr) {
+   return magic ^ reinterpret_cast<uintptr_t>(ptr);
+ }
++#endif
+ 
+ namespace {
+ size_t GetPageSize() {
+@@ -339,9 +358,18 @@ size_t GetPageSize() {
+ size_t RoundedUpBlockSize() {
+   // Round up block sizes to a power of two close to the header size.
+   size_t round_up = 16;
++#if defined(__CHERI_PURE_CAPABILITY__)
++  while (round_up < offsetof(AllocList, next) + sizeof(void *)) {
++    round_up += round_up;
++  }
++  ABSL_RAW_CHECK(round_up >= offsetof(AllocList, next) + sizeof(void *),
++                 "block roundup size not big enough to fit at least one "
++                 "skiplist level");
++#else
+   while (round_up < sizeof(AllocList::Header)) {
+     round_up += round_up;
+   }
++#endif
+   return round_up;
+ }
+ 
+@@ -433,17 +461,35 @@ bool LowLevelAlloc::DeleteArena(Arena *arena) {
+ 
+ // Addition, checking for overflow.  The intent is to die if an external client
+ // manages to push through a request that would cause arithmetic to fail.
++#ifdef __CHERI_PURE_CAPABILITY__
++template<typename T>
++static inline T CheckedAdd(T a, size_t b) {
++  T sum = a + b;
++  ABSL_RAW_CHECK(sum >= a, "LowLevelAlloc arithmetic overflow");
++  return sum;
++}
++#else
+ static inline uintptr_t CheckedAdd(uintptr_t a, uintptr_t b) {
+   uintptr_t sum = a + b;
+   ABSL_RAW_CHECK(sum >= a, "LowLevelAlloc arithmetic overflow");
+   return sum;
+ }
++#endif
+ 
+ // Return value rounded up to next multiple of align.
+ // align must be a power of two.
++#ifdef __CHERI_PURE_CAPABILITY__
++template<typename T>
++static inline T RoundUp(T value, size_t align) {
++  T rval = __builtin_align_up(value, align);
++  ABSL_RAW_CHECK(rval >= value, "LowLevelAlloc arithmetic overflow");
++  return rval;
++}
++#else
+ static inline uintptr_t RoundUp(uintptr_t addr, uintptr_t align) {
+   return CheckedAdd(addr, align - 1) & ~(align - 1);
+ }
++#endif
+ 
+ // Equivalent to "return prev->next[i]" but with sanity checking
+ // that the freelist is in the correct order, that it
+@@ -460,9 +506,13 @@ static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena) {
+     ABSL_RAW_CHECK(next->header.arena == arena, "bad arena pointer in Next()");
+     if (prev != &arena->freelist) {
+       ABSL_RAW_CHECK(prev < next, "unordered freelist");
++#if !defined(__CHERI_PURE_CAPABILITY__)
++      // XXX-AM: This must be allowed for the time being as we can not coalesce
++      // disjointed capabilities.
+       ABSL_RAW_CHECK(reinterpret_cast<char *>(prev) + prev->header.size <
+                          reinterpret_cast<char *>(next),
+                      "malformed freelist");
++#endif
+     }
+   }
+   return next;
+@@ -473,6 +523,17 @@ static void Coalesce(AllocList *a) {
+   AllocList *n = a->next[0];
+   if (n != nullptr && reinterpret_cast<char *>(a) + a->header.size ==
+                           reinterpret_cast<char *>(n)) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++    // XXX-AM: Prevent coalescing of allocations if the block
++    // capability does not allow it.
++    // This is a workaround that will cause fragmentation, we shoud find a
++    // way to re-derive capabilities, as long as they don't belong to
++    // different reservations.
++    if (cheri_gettop(a) < static_cast<ptraddr_t>(reinterpret_cast<intptr_t>(n) +
++                                                 n->header.size)) {
++      return;
++    }
++#endif
+     LowLevelAlloc::Arena *arena = a->header.arena;
+     a->header.size += n->header.size;
+     n->header.magic = 0;
+diff --git absl/base/internal/strerror.cc absl/base/internal/strerror.cc
+index 0d6226fd..3575aa93 100644
+--- absl/base/internal/strerror.cc
++++ absl/base/internal/strerror.cc
+@@ -44,8 +44,20 @@ const char* StrErrorAdaptor(int errnum, char* buf, size_t buflen) {
+     if (ret) *buf = '\0';
+     return buf;
+   } else {
++#ifdef __CHERI_PURE_CAPABILITY__
++    /*
++     * XXX-AM: Disable this because CHERI clang will complain about the cast
++     * even though this happens in a branch that is elided with the constexpr
++     * conditional.
++     */
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wcheri-capability-misuse"
++#endif
+     // GNU `strerror_r`; `ret` is `char *`:
+     return reinterpret_cast<const char*>(ret);
++#ifdef __CHERI_PURE_CAPABILITY__
++#pragma clang diagnostic pop
++#endif
+   }
+ #endif
+ }
+diff --git absl/base/internal/sysinfo.cc absl/base/internal/sysinfo.cc
+index c8366df1..8eb9d2e8 100644
+--- absl/base/internal/sysinfo.cc
++++ absl/base/internal/sysinfo.cc
+@@ -428,7 +428,7 @@ static constexpr int kBitsPerWord = 32;  // tid_array is uint32_t.
+ 
+ // Returns the TID to tid_array.
+ static void FreeTID(void *v) {
+-  intptr_t tid = reinterpret_cast<intptr_t>(v);
++  size_t tid = reinterpret_cast<size_t>(v);
+   int word = tid / kBitsPerWord;
+   uint32_t mask = ~(1u << (tid % kBitsPerWord));
+   absl::base_internal::SpinLockHolder lock(&tid_lock);
+@@ -453,7 +453,7 @@ static void InitGetTID() {
+ pid_t GetTID() {
+   absl::call_once(tid_once, InitGetTID);
+ 
+-  intptr_t tid = reinterpret_cast<intptr_t>(pthread_getspecific(tid_key));
++  size_t tid = reinterpret_cast<size_t>(pthread_getspecific(tid_key));
+   if (tid != 0) {
+     return tid;
+   }
+@@ -480,7 +480,8 @@ pid_t GetTID() {
+     (*tid_array)[word] |= 1u << bit;  // Mark the TID as allocated.
+   }
+ 
+-  if (pthread_setspecific(tid_key, reinterpret_cast<void *>(tid)) != 0) {
++  if (pthread_setspecific(tid_key, reinterpret_cast<void *>(
++          static_cast<uintptr_t>(tid))) != 0) {
+     perror("pthread_setspecific failed");
+     abort();
+   }
+diff --git absl/container/CMakeLists.txt absl/container/CMakeLists.txt
+index 9b5c59a4..8d9a4542 100644
+--- absl/container/CMakeLists.txt
++++ absl/container/CMakeLists.txt
+@@ -432,19 +432,20 @@ absl_cc_library(
+   PUBLIC
+ )
+ 
+-absl_cc_test(
+-  NAME
+-    container_memory_test
+-  SRCS
+-    "internal/container_memory_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-  DEPS
+-    absl::container_memory
+-    absl::strings
+-    absl::test_instance_tracker
+-    GTest::gmock_main
+-)
++# XXX-AM: Disabled to work around having to use -fno-rtti
++# absl_cc_test(
++#   NAME
++#     container_memory_test
++#   SRCS
++#     "internal/container_memory_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#   DEPS
++#     absl::container_memory
++#     absl::strings
++#     absl::test_instance_tracker
++#     GTest::gmock_main
++# )
+ 
+ # Internal-only target, do not depend on directly.
+ absl_cc_library(
+diff --git absl/container/btree_test.cc absl/container/btree_test.cc
+index f20f3430..71eaa2a2 100644
+--- absl/container/btree_test.cc
++++ absl/container/btree_test.cc
+@@ -792,9 +792,12 @@ void BtreeMultiMapTest() {
+ 
+ template <typename K, int N = 256>
+ void SetTest() {
+-  EXPECT_EQ(
+-      sizeof(absl::btree_set<K>),
+-      2 * sizeof(void *) + sizeof(typename absl::btree_set<K>::size_type));
++  constexpr size_t expect_size =
++      2 * sizeof(void *) + sizeof(typename absl::btree_set<K>::size_type);
++  constexpr size_t align = std::alignment_of<absl::btree_set<K>>::value;
++  constexpr size_t aligned_size = (expect_size + (align - 1)) & ~(align - 1);
++
++  EXPECT_EQ(sizeof(absl::btree_set<K>), aligned_size);
+   using BtreeSet = absl::btree_set<K>;
+   using CountingBtreeSet =
+       absl::btree_set<K, std::less<K>, PropagatingCountingAlloc<K>>;
+@@ -804,9 +807,12 @@ void SetTest() {
+ 
+ template <typename K, int N = 256>
+ void MapTest() {
+-  EXPECT_EQ(
+-      sizeof(absl::btree_map<K, K>),
+-      2 * sizeof(void *) + sizeof(typename absl::btree_map<K, K>::size_type));
++  constexpr size_t expect_size =
++      2 * sizeof(void *) + sizeof(typename absl::btree_map<K, K>::size_type);
++  constexpr size_t align = std::alignment_of<absl::btree_map<K, K>>::value;
++  constexpr size_t aligned_size = (expect_size + (align - 1)) & ~(align - 1);
++
++  EXPECT_EQ(sizeof(absl::btree_map<K, K>), aligned_size);
+   using BtreeMap = absl::btree_map<K, K>;
+   using CountingBtreeMap =
+       absl::btree_map<K, K, std::less<K>,
+@@ -829,9 +835,12 @@ TEST(Btree, map_pair) { MapTest<std::pair<int, int>>(); }
+ 
+ template <typename K, int N = 256>
+ void MultiSetTest() {
+-  EXPECT_EQ(
+-      sizeof(absl::btree_multiset<K>),
+-      2 * sizeof(void *) + sizeof(typename absl::btree_multiset<K>::size_type));
++  constexpr size_t expect_size =
++      2 * sizeof(void *) + sizeof(typename absl::btree_multiset<K>::size_type);
++  constexpr size_t align = std::alignment_of<absl::btree_multiset<K>>::value;
++  constexpr size_t aligned_size = (expect_size + (align - 1)) & ~(align - 1);
++
++  EXPECT_EQ(sizeof(absl::btree_multiset<K>), aligned_size);
+   using BtreeMSet = absl::btree_multiset<K>;
+   using CountingBtreeMSet =
+       absl::btree_multiset<K, std::less<K>, PropagatingCountingAlloc<K>>;
+@@ -841,9 +850,13 @@ void MultiSetTest() {
+ 
+ template <typename K, int N = 256>
+ void MultiMapTest() {
+-  EXPECT_EQ(sizeof(absl::btree_multimap<K, K>),
+-            2 * sizeof(void *) +
+-                sizeof(typename absl::btree_multimap<K, K>::size_type));
++  constexpr size_t expect_size =
++      2 * sizeof(void *) +
++      sizeof(typename absl::btree_multimap<K, K>::size_type);
++  constexpr size_t align = std::alignment_of<absl::btree_multimap<K, K>>::value;
++  constexpr size_t aligned_size = (expect_size + (align - 1)) & ~(align - 1);
++
++  EXPECT_EQ(sizeof(absl::btree_multimap<K, K>), aligned_size);
+   using BtreeMMap = absl::btree_multimap<K, K>;
+   using CountingBtreeMMap =
+       absl::btree_multimap<K, K, std::less<K>,
+diff --git absl/container/internal/raw_hash_set.h absl/container/internal/raw_hash_set.h
+index ea912f83..a21578ce 100644
+--- absl/container/internal/raw_hash_set.h
++++ absl/container/internal/raw_hash_set.h
+@@ -473,7 +473,7 @@ inline size_t PerTableSalt(const ctrl_t* ctrl) {
+   // The low bits of the pointer have little or no entropy because of
+   // alignment. We shift the pointer to try to use higher entropy bits. A
+   // good number seems to be 12 bits, because that aligns with page size.
+-  return reinterpret_cast<uintptr_t>(ctrl) >> 12;
++  return reinterpret_cast<ptraddr_t>(ctrl) >> 12;
+ }
+ // Extracts the H1 portion of a hash: 57 bits mixed with a per-table salt.
+ inline size_t H1(size_t hash, const ctrl_t* ctrl) {
+diff --git absl/container/internal/raw_hash_set_test.cc absl/container/internal/raw_hash_set_test.cc
+index f77ffbc1..2c32564b 100644
+--- absl/container/internal/raw_hash_set_test.cc
++++ absl/container/internal/raw_hash_set_test.cc
+@@ -443,20 +443,45 @@ TEST(Table, EmptyFunctorOptimization) {
+   static_assert(std::is_empty<std::equal_to<absl::string_view>>::value, "");
+   static_assert(std::is_empty<std::allocator<int>>::value, "");
+ 
+-  struct MockTable {
++  struct MockTableStateless {
+     void* ctrl;
+     void* slots;
+     size_t size;
+     size_t capacity;
+-    size_t growth_left;
+-    void* infoz;
++    std::tuple<size_t,  // growth_left
++               void*    // infoz
++               >
++        settings;
+   };
+-  struct MockTableInfozDisabled {
++  struct MockTableStateful {
+     void* ctrl;
+     void* slots;
+     size_t size;
+     size_t capacity;
+-    size_t growth_left;
++    std::tuple<size_t,  // growth_left
++               void*,   // infoz
++               size_t   // stateful hasher size
++               >
++        settings;
++  };
++  struct MockTableInfozDisabledStateless {
++    void* ctrl;
++    void* slots;
++    size_t size;
++    size_t capacity;
++    std::tuple<size_t  // growth_left
++               >
++        settings;
++  };
++  struct MockTableInfozDisabledStateful {
++    void* ctrl;
++    void* slots;
++    size_t size;
++    size_t capacity;
++    std::tuple<size_t,  // growth_left
++               size_t   // stateful hasher size
++               >
++        settings;
+   };
+   struct StatelessHash {
+     size_t operator()(absl::string_view) const { return 0; }
+@@ -466,22 +491,22 @@ TEST(Table, EmptyFunctorOptimization) {
+   };
+ 
+   if (std::is_empty<HashtablezInfoHandle>::value) {
+-    EXPECT_EQ(sizeof(MockTableInfozDisabled),
++    EXPECT_EQ(sizeof(MockTableInfozDisabledStateless),
+               sizeof(raw_hash_set<StringPolicy, StatelessHash,
+                                   std::equal_to<absl::string_view>,
+                                   std::allocator<int>>));
+ 
+-    EXPECT_EQ(sizeof(MockTableInfozDisabled) + sizeof(StatefulHash),
++    EXPECT_EQ(sizeof(MockTableInfozDisabledStateful),
+               sizeof(raw_hash_set<StringPolicy, StatefulHash,
+                                   std::equal_to<absl::string_view>,
+                                   std::allocator<int>>));
+   } else {
+-    EXPECT_EQ(sizeof(MockTable),
++    EXPECT_EQ(sizeof(MockTableStateless),
+               sizeof(raw_hash_set<StringPolicy, StatelessHash,
+                                   std::equal_to<absl::string_view>,
+                                   std::allocator<int>>));
+ 
+-    EXPECT_EQ(sizeof(MockTable) + sizeof(StatefulHash),
++    EXPECT_EQ(sizeof(MockTableStateful),
+               sizeof(raw_hash_set<StringPolicy, StatefulHash,
+                                   std::equal_to<absl::string_view>,
+                                   std::allocator<int>>));
+@@ -992,7 +1017,7 @@ TEST(Table, ClearBug) {
+   // We are checking that original and second are close enough to each other
+   // that they are probably still in the same group.  This is not strictly
+   // guaranteed.
+-  EXPECT_LT(std::abs(original - second),
++  EXPECT_LT(std::abs(static_cast<ptrdiff_t>(original - second)),
+             capacity * sizeof(IntTable::value_type));
+ }
+ 
+diff --git absl/debugging/internal/demangle_test.cc absl/debugging/internal/demangle_test.cc
+index 6b142902..d44fbfb6 100644
+--- absl/debugging/internal/demangle_test.cc
++++ absl/debugging/internal/demangle_test.cc
+@@ -135,7 +135,11 @@ static const char *DemangleStackConsumption(const char *mangled,
+ // with some level of nesting. With alternate signal stack we have 64K,
+ // but some signal handlers run on thread stack, and could have arbitrarily
+ // little space left (so we don't want to make this number too large).
++#if defined(__CHERI_PURE_CAPABILITY__)
++const int kStackConsumptionUpperLimit = 16 * 1024;
++#else
+ const int kStackConsumptionUpperLimit = 8192;
++#endif
+ 
+ // Returns a mangled name nested to the given depth.
+ static std::string NestedMangledName(int depth) {
+diff --git absl/debugging/internal/elf_mem_image.cc absl/debugging/internal/elf_mem_image.cc
+index a9d66714..2e8bf150 100644
+--- absl/debugging/internal/elf_mem_image.cc
++++ absl/debugging/internal/elf_mem_image.cc
+@@ -48,7 +48,8 @@ namespace {
+ const int kElfClass = ELFCLASS32;
+ int ElfBind(const ElfW(Sym) *symbol) { return ELF32_ST_BIND(symbol->st_info); }
+ int ElfType(const ElfW(Sym) *symbol) { return ELF32_ST_TYPE(symbol->st_info); }
+-#elif __SIZEOF_POINTER__ == 8
++#elif __SIZEOF_POINTER__ == 8 || \
++    (__SIZEOF_POINTER__ == 16 && defined(__CHERI_PURE_CAPABILITY__))
+ const int kElfClass = ELFCLASS64;
+ int ElfBind(const ElfW(Sym) *symbol) { return ELF64_ST_BIND(symbol->st_info); }
+ int ElfType(const ElfW(Sym) *symbol) { return ELF64_ST_TYPE(symbol->st_info); }
+diff --git absl/debugging/internal/vdso_support.cc absl/debugging/internal/vdso_support.cc
+index 40eb055f..5b23c6d9 100644
+--- absl/debugging/internal/vdso_support.cc
++++ absl/debugging/internal/vdso_support.cc
+@@ -90,7 +90,13 @@ VDSOSupport::VDSOSupport()
+ // Finally, even if there is a race here, it is harmless, because
+ // the operation should be idempotent.
+ const void *VDSOSupport::Init() {
++  /*
++   * XXX-AM: CheriBSD does not have a VDSO EHDR interface, unless we are using
++   * linux compat. For the sake of pacifying clang, skip all this
++   */
++#if defined(__FreeBSD__) && !__has_feature(capabilities)
+   const auto kInvalidBase = debugging_internal::ElfMemImage::kInvalidBase;
++
+ #ifdef ABSL_HAVE_GETAUXVAL
+   if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
+     errno = 0;
+@@ -140,6 +146,11 @@ const void *VDSOSupport::Init() {
+   // from assigning to getcpu_fn_ more than once.
+   getcpu_fn_.store(fn, std::memory_order_relaxed);
+   return vdso_base_.load(std::memory_order_relaxed);
++#else /* defined(__FreeBSD__) && __has_feature(capabilities) */
++  vdso_base_.store(nullptr, std::memory_order_relaxed);
++  getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
++  return nullptr;
++#endif
+ }
+ 
+ const void *VDSOSupport::SetBase(const void *base) {
+diff --git absl/flags/internal/flag.h absl/flags/internal/flag.h
+index 6154638c..b0f1a445 100644
+--- absl/flags/internal/flag.h
++++ absl/flags/internal/flag.h
+@@ -760,7 +760,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
+       size_t round_to = alignof(FlagValue<T>);
+       size_t offset =
+           (sizeof(FlagImpl) + round_to - 1) / round_to * round_to;
+-      return reinterpret_cast<void*>(offset);
++      return reinterpret_cast<void*>(static_cast<uintptr_t>(offset));
+     }
+   }
+   return nullptr;
+diff --git absl/random/internal/randen_engine.h absl/random/internal/randen_engine.h
+index b4708664..8ac8e60d 100644
+--- absl/random/internal/randen_engine.h
++++ absl/random/internal/randen_engine.h
+@@ -32,6 +32,12 @@ namespace absl {
+ ABSL_NAMESPACE_BEGIN
+ namespace random_internal {
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define RANDEN_ALIGN 16
++#else
++#define RANDEN_ALIGN 8
++#endif
++
+ // Deterministic pseudorandom byte generator with backtracking resistance
+ // (leaking the state does not compromise prior outputs). Based on Reverie
+ // (see "A Robust and Sponge-Like PRNG with Improved Efficiency") instantiated
+@@ -42,7 +48,7 @@ namespace random_internal {
+ // 'Strong' (well-distributed, unpredictable, backtracking-resistant) random
+ // generator, faster in some benchmarks than std::mt19937_64 and pcg64_c32.
+ template <typename T>
+-class alignas(8) randen_engine {
++class alignas(RANDEN_ALIGN) randen_engine {
+  public:
+   // C++11 URBG interface:
+   using result_type = T;
+diff --git absl/strings/cord.h absl/strings/cord.h
+index 18d6ab85..fa94a040 100644
+--- absl/strings/cord.h
++++ absl/strings/cord.h
+@@ -793,7 +793,14 @@ class Cord {
+   class InlineRep {
+    public:
+     static constexpr unsigned char kMaxInline = cord_internal::kMaxInline;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    static constexpr unsigned char kInlineDataSiz =
++        sizeof(cord_internal::InlineData);
++    static_assert(kInlineDataSiz >= sizeof(absl::cord_internal::CordRep*), "");
++#else
++    static constexpr unsigned char kInlineDataSiz = kMaxInline;
+     static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
++#endif
+ 
+     constexpr InlineRep() : data_() {}
+     explicit InlineRep(InlineData::DefaultInitType init) : data_(init) {}
+@@ -1019,9 +1026,24 @@ namespace cord_internal {
+ // Fast implementation of memmove for up to 15 bytes. This implementation is
+ // safe for overlapping regions. If nullify_tail is true, the destination is
+ // padded with '\0' up to 16 bytes.
++// CHERI requires this to work up to 31 bytes.
+ template <bool nullify_tail = false>
+ inline void SmallMemmove(char* dst, const char* src, size_t n) {
+-  if (n >= 8) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++  // if (n >= 16) {
++  //   assert(n <= 32);
++  //   __uint128_t buf1;
++  //   __uint128_t buf2;
++  //   memcpy(&buf1, src, 16);
++  //   memcpy(&buf2, src + n - 16, 16);
++  //   if (nullify_tail) {
++  //     memset(dst, 0, n);
++  //   }
++  //   memcpy(dst, &buf1, 16);
++  //   memcpy(dst + n - 16, &buf2, 16);
++  // } else
++#endif
++      if (n >= 8) {
+     assert(n <= 16);
+     uint64_t buf1;
+     uint64_t buf2;
+@@ -1175,11 +1197,11 @@ inline size_t Cord::InlineRep::size() const {
+ 
+ inline cord_internal::CordRepFlat* Cord::InlineRep::MakeFlatWithExtraCapacity(
+     size_t extra) {
+-  static_assert(cord_internal::kMinFlatLength >= sizeof(data_), "");
++  static_assert(cord_internal::kMinFlatLength >= kMaxInline, "");
+   size_t len = data_.inline_size();
+   auto* result = CordRepFlat::New(len + extra);
+   result->length = len;
+-  memcpy(result->Data(), data_.as_chars(), sizeof(data_));
++  memcpy(result->Data(), data_.as_chars(), kMaxInline);
+   return result;
+ }
+ 
+diff --git absl/strings/cord_buffer.h absl/strings/cord_buffer.h
+index 56a6ce6f..19f39fd0 100644
+--- absl/strings/cord_buffer.h
++++ absl/strings/cord_buffer.h
+@@ -389,7 +389,7 @@ class CordBuffer {
+       cord_internal::CordRepFlat* rep;
+     };
+     struct Short {
+-      char data[sizeof(Long) - 1];
++      char data[kInlineCapacity];
+       char raw_size = 1;
+     };
+ #else
+@@ -400,7 +400,7 @@ class CordBuffer {
+     };
+     struct Short {
+       char raw_size = 1;
+-      char data[sizeof(Long) - 1];
++      char data[kInlineCapacity];
+     };
+ #endif
+ 
+diff --git absl/strings/cord_ring_test.cc absl/strings/cord_ring_test.cc
+index f39a0a4f..c892ce8f 100644
+--- absl/strings/cord_ring_test.cc
++++ absl/strings/cord_ring_test.cc
+@@ -663,7 +663,13 @@ TEST_P(CordRingBuildTest, AppendStringHavingExtra) {
+ }
+ 
+ TEST_P(CordRingBuildTest, AppendStringHavingPartialExtra) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++  absl::string_view str1 = "12345678901234567890"
++                           "12345678901234567890"
++                           "1234567890";
++#else
+   absl::string_view str1 = "1234";
++#endif
+   absl::string_view str2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+ 
+   // Create flat with at least one extra byte. We don't expect to have sized
+diff --git absl/strings/cord_test.cc absl/strings/cord_test.cc
+index 0862f69a..11c3f0b1 100644
+--- absl/strings/cord_test.cc
++++ absl/strings/cord_test.cc
+@@ -260,8 +260,8 @@ TEST(CordRepFlat, AllFlatCapacities) {
+   // Explicitly and redundantly assert built-in min/max limits
+   static_assert(absl::cord_internal::kFlatOverhead < 32, "");
+   static_assert(absl::cord_internal::kMinFlatSize == 32, "");
+-  static_assert(absl::cord_internal::kMaxLargeFlatSize == 256 << 10, "");
+   EXPECT_EQ(absl::cord_internal::TagToAllocatedSize(FLAT), 32);
++  static_assert(absl::cord_internal::kMaxLargeFlatSize == 256 << 10, "");
+   EXPECT_EQ(absl::cord_internal::TagToAllocatedSize(MAX_FLAT_TAG), 256 << 10);
+ 
+   // Verify all tags to map perfectly back and forth, and
+@@ -619,7 +619,11 @@ TEST_P(CordTest, AppendEmptyBufferToTree) {
+ TEST_P(CordTest, AppendSmallBuffer) {
+   absl::Cord cord;
+   absl::CordBuffer buffer = absl::CordBuffer::CreateWithDefaultLimit(3);
++#if defined(__CHERI_PURE_CAPABILITY__)
++  ASSERT_THAT(buffer.capacity(), ::testing::Le(31));
++#else
+   ASSERT_THAT(buffer.capacity(), ::testing::Le(15));
++#endif
+   memcpy(buffer.data(), "Abc", 3);
+   buffer.SetLength(3);
+   cord.Append(std::move(buffer));
+@@ -672,7 +676,11 @@ TEST_P(CordTest, AppendAndPrependBufferArePrecise) {
+ TEST_P(CordTest, PrependSmallBuffer) {
+   absl::Cord cord;
+   absl::CordBuffer buffer = absl::CordBuffer::CreateWithDefaultLimit(3);
++#if defined(__CHERI_PURE_CAPABILITY__)
++  ASSERT_THAT(buffer.capacity(), ::testing::Le(31));
++#else
+   ASSERT_THAT(buffer.capacity(), ::testing::Le(15));
++#endif
+   memcpy(buffer.data(), "Abc", 3);
+   buffer.SetLength(3);
+   cord.Prepend(std::move(buffer));
+diff --git absl/strings/internal/cord_internal.h absl/strings/internal/cord_internal.h
+index b50fb79a..30b1e9b3 100644
+--- absl/strings/internal/cord_internal.h
++++ absl/strings/internal/cord_internal.h
+@@ -21,6 +21,10 @@
+ #include <cstdint>
+ #include <type_traits>
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <cheri/cheric.h>
++#endif
++
+ #include "absl/base/attributes.h"
+ #include "absl/base/config.h"
+ #include "absl/base/internal/endian.h"
+@@ -239,6 +243,7 @@ struct CordRep {
+   // `height`, `begin` and `end` in the 3 entries. Otherwise we would need to
+   // allocate room for these in the derived class, as not all compilers reuse
+   // padding space from the base class (clang and gcc do, MSVC does not, etc)
++  // XXX-AM: Flexible array member will require __subobject_* annotation
+   uint8_t storage[3];
+ 
+   // Returns true if this instance's tag matches the requested type.
+@@ -426,11 +431,17 @@ constexpr char GetOrNull(absl::string_view data, size_t pos) {
+ // guarantees that the least significant byte of cordz_info matches the last
+ // byte of the inline data representation in as_chars_, which holds the inlined
+ // size or the 'is_tree' bit.
++#if defined(__CHERI_PURE_CAPABILITY__)
++using cordz_info_t = intptr_t;
++#else
+ using cordz_info_t = int64_t;
++#endif
+ 
+ // Assert that the `cordz_info` pointer value perfectly overlaps the last half
+ // of `as_chars_` and can hold a pointer value.
++#if !defined(__CHERI_PURE_CAPABILITY__)
+ static_assert(sizeof(cordz_info_t) * 2 == kMaxInline + 1, "");
++#endif
+ static_assert(sizeof(cordz_info_t) >= sizeof(intptr_t), "");
+ 
+ // BigEndianByte() creates a big endian representation of 'value', i.e.: a big
+@@ -453,21 +464,38 @@ class InlineData {
+   // This is the 'null' / initial value of 'cordz_info'. The null value
+   // is specifically big endian 1 as with 64-bit pointers, the last
+   // byte of cordz_info overlaps with the last byte holding the tag.
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static constexpr cordz_info_t kNullCordzInfo = 1;
++#else
+   static constexpr cordz_info_t kNullCordzInfo = BigEndianByte(1);
++#endif
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++  constexpr InlineData() : as_chars_{0}, cordz_info_{0} {}
++#else
+   constexpr InlineData() : as_chars_{0} {}
++#endif
+   explicit InlineData(DefaultInitType) {}
+   explicit constexpr InlineData(CordRep* rep) : as_tree_(rep) {}
+   explicit constexpr InlineData(absl::string_view chars)
+       : as_chars_{
+-            GetOrNull(chars, 0),  GetOrNull(chars, 1),
+-            GetOrNull(chars, 2),  GetOrNull(chars, 3),
+-            GetOrNull(chars, 4),  GetOrNull(chars, 5),
+-            GetOrNull(chars, 6),  GetOrNull(chars, 7),
+-            GetOrNull(chars, 8),  GetOrNull(chars, 9),
+-            GetOrNull(chars, 10), GetOrNull(chars, 11),
+-            GetOrNull(chars, 12), GetOrNull(chars, 13),
+-            GetOrNull(chars, 14), static_cast<char>((chars.size() << 1))} {}
++    GetOrNull(chars, 0), GetOrNull(chars, 1), GetOrNull(chars, 2),
++        GetOrNull(chars, 3), GetOrNull(chars, 4), GetOrNull(chars, 5),
++        GetOrNull(chars, 6), GetOrNull(chars, 7), GetOrNull(chars, 8),
++        GetOrNull(chars, 9), GetOrNull(chars, 10), GetOrNull(chars, 11),
++        GetOrNull(chars, 12), GetOrNull(chars, 13), GetOrNull(chars, 14),
++#if defined(__CHERI_PURE_CAPABILITY__)
++        // XXX-AM: The pure-capability version maintains the same size
++        // and layout of inline data, however the tag byte is kept in
++        // the LSB of the cordz_info_t pointer.
++        '\0'
++  }
++  , cordz_info_ { static_cast<cordz_info_t>((chars.size() << 1)) }
++#else
++        static_cast<char>((chars.size() << 1))
++  }
++#endif
++  {}
+ 
+   // Returns true if the current instance is empty.
+   // The 'empty value' is an inlined data value of zero length.
+@@ -489,8 +517,8 @@ class InlineData {
+   static bool is_either_profiled(const InlineData& data1,
+                                  const InlineData& data2) {
+     assert(data1.is_tree() && data2.is_tree());
+-    return (data1.as_tree_.cordz_info | data2.as_tree_.cordz_info) !=
+-           kNullCordzInfo;
++    return ((ptraddr_t)data1.as_tree_.cordz_info |
++            (ptraddr_t)data2.as_tree_.cordz_info) != kNullCordzInfo;
+   }
+ 
+   // Returns the cordz_info sampling instance for this instance, or nullptr
+@@ -498,8 +526,12 @@ class InlineData {
+   // Requires the current instance to hold a tree value.
+   CordzInfo* cordz_info() const {
+     assert(is_tree());
++#if defined(__CHERI_PURE_CAPABILITY__)
++    intptr_t info = as_tree_.cordz_info;
++#else
+     intptr_t info = static_cast<intptr_t>(
+         absl::big_endian::ToHost64(static_cast<uint64_t>(as_tree_.cordz_info)));
++#endif
+     assert(info & 1);
+     return reinterpret_cast<CordzInfo*>(info - 1);
+   }
+@@ -510,8 +542,12 @@ class InlineData {
+   void set_cordz_info(CordzInfo* cordz_info) {
+     assert(is_tree());
+     uintptr_t info = reinterpret_cast<uintptr_t>(cordz_info) | 1;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    as_tree_.cordz_info = info;
++#else
+     as_tree_.cordz_info =
+         static_cast<cordz_info_t>(absl::big_endian::FromHost64(info));
++#endif
+   }
+ 
+   // Resets the current cordz_info to null / empty.
+@@ -524,7 +560,11 @@ class InlineData {
+   // Requires the current instance to hold inline data.
+   const char* as_chars() const {
+     assert(!is_tree());
++#if defined(__CHERI_PURE_CAPABILITY__)
++    return cheri_setbounds(as_chars_, kMaxInline + 1);
++#else
+     return as_chars_;
++#endif
+   }
+ 
+   // Returns a mutable pointer to the character data inside this instance.
+@@ -542,7 +582,13 @@ class InlineData {
+   //
+   // It's an error to read from the returned pointer without a preceding write
+   // if the current instance does not hold inline data, i.e.: is_tree() == true.
+-  char* as_chars() { return as_chars_; }
++  char* as_chars() {
++#if defined(__CHERI_PURE_CAPABILITY__)
++    return cheri_setbounds(as_chars_, kMaxInline + 1);
++#else
++    return as_chars_;
++#endif
++  }
+ 
+   // Returns the tree value of this value.
+   // Requires the current instance to hold a tree value.
+@@ -596,20 +642,49 @@ class InlineData {
+     cordz_info_t cordz_info;
+   };
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#if defined(ABSL_IS_BIG_ENDIAN)
++  char& tag() {
++    return reinterpret_cast<char*>(&cordz_info_)[sizeof(cordz_info_t) - 1];
++  }
++  char tag() const {
++    return reinterpret_cast<const char*>(
++        &cordz_info_)[sizeof(cordz_info_t) - 1];
++  }
++#else
++  char& tag() { return reinterpret_cast<char*>(&cordz_info_)[0]; }
++  char tag() const { return reinterpret_cast<const char*>(&cordz_info_)[0]; }
++#endif
++#else   // !__CHERI_PURE_CAPABILITY__
+   char& tag() { return reinterpret_cast<char*>(this)[kMaxInline]; }
+   char tag() const { return reinterpret_cast<const char*>(this)[kMaxInline]; }
++#endif  // !__CHERI_PURE_CAPABILITY__
+ 
+   // If the data has length <= kMaxInline, we store it in `as_chars_`, and
+   // store the size in the last char of `as_chars_` shifted left + 1.
+   // Else we store it in a tree and store a pointer to that tree in
+   // `as_tree_.rep` and store a tag in `tagged_size`.
++#if defined(__CHERI_PURE_CAPABILITY__)
++  union {
++    struct {
++      char as_chars_[kMaxInline + 1];
++      cordz_info_t cordz_info_;
++    };
++    AsTree as_tree_;
++  };
++#else
+   union {
+     char as_chars_[kMaxInline + 1];
+     AsTree as_tree_;
+   };
++#endif
+ };
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++static_assert(sizeof(InlineData) == 2 * sizeof(uintptr_t), "");
++#else
+ static_assert(sizeof(InlineData) == kMaxInline + 1, "");
++#endif
+ 
+ inline CordRepSubstring* CordRep::substring() {
+   assert(IsSubstring());
+diff --git absl/strings/internal/str_format/arg.h absl/strings/internal/str_format/arg.h
+index b9dda909..c6f9bc20 100644
+--- absl/strings/internal/str_format/arg.h
++++ absl/strings/internal/str_format/arg.h
+@@ -233,6 +233,14 @@ IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
+                                         FormatSinkImpl* sink) {
+   return FormatConvertImpl(static_cast<int>(v), conv, sink);
+ }
++#if defined(__CHERI_PURE_CAPABILITY__)
++template <typename T, enable_if_t<std::is_same<T, intptr_t>::value ||
++                                  std::is_same<T, uintptr_t>::value, int> = 0>
++IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
++                                        FormatSinkImpl* sink) {
++  return FormatConvertImpl(static_cast<ptraddr_t>(v), conv, sink);
++}
++#endif
+ 
+ // We provide this function to help the checker, but it is never defined.
+ // FormatArgImpl will use the underlying Convert functions instead.
+@@ -311,7 +319,11 @@ constexpr FormatConversionCharSet ArgumentToConv() {
+ // A type-erased handle to a format argument.
+ class FormatArgImpl {
+  private:
++#if defined(__CHERI_PURE_CAPABILITY__)
++  enum { kInlinedSpace = sizeof(void*) };
++#else
+   enum { kInlinedSpace = 8 };
++#endif
+ 
+   using VoidPtr = str_format_internal::VoidPtr;
+ 
+diff --git absl/strings/numbers.h absl/strings/numbers.h
+index 86c84ed3..3b723c2b 100644
+--- absl/strings/numbers.h
++++ absl/strings/numbers.h
+@@ -150,7 +150,12 @@ bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base);
+ bool safe_strtou128_base(absl::string_view text, absl::uint128* value,
+                          int base);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++// This should be at least 2 pointers + 2 bytes
++static const int kFastToBufferSize = 64;
++#else
+ static const int kFastToBufferSize = 32;
++#endif
+ static const int kSixDigitsToBufferSize = 16;
+ 
+ // Helper function for fast formatting of floating-point values.
+@@ -173,8 +178,15 @@ char* FastIntToBuffer(uint64_t, char*);
+ // use templates to call the appropriate one of the four overloads above.
+ template <typename int_type>
+ char* FastIntToBuffer(int_type i, char* buffer) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static_assert(sizeof(i) <= 64 / 8 ||
++                std::is_same<int_type, intptr_t>::value ||
++                std::is_same<int_type, uintptr_t>::value,
++                "FastIntToBuffer works only with 64-bit-or-less integers.");
++#else
+   static_assert(sizeof(i) <= 64 / 8,
+                 "FastIntToBuffer works only with 64-bit-or-less integers.");
++#endif
+   // TODO(jorg): This signed-ness check is used because it works correctly
+   // with enums, and it also serves to check that int_type is not a pointer.
+   // If one day something like std::is_signed<enum E> works, switch to it.
+@@ -201,8 +213,15 @@ char* FastIntToBuffer(int_type i, char* buffer) {
+ template <typename int_type>
+ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
+                                            int base) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++  static_assert(sizeof(*out) == 4 || sizeof(*out) == 8 ||
++                std::is_same<int_type, intptr_t>::value ||
++                std::is_same<int_type, uintptr_t>::value,
++                "SimpleAtoi works only with 32-bit or 64-bit integers.");
++#else
+   static_assert(sizeof(*out) == 4 || sizeof(*out) == 8,
+                 "SimpleAtoi works only with 32-bit or 64-bit integers.");
++#endif
+   static_assert(!std::is_floating_point<int_type>::value,
+                 "Use SimpleAtof or SimpleAtod instead.");
+   bool parsed;
+@@ -211,7 +230,7 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
+   // If one day something like std::is_signed<enum E> works, switch to it.
+   // These conditions are constexpr bools to suppress MSVC warning C4127.
+   constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
+-  constexpr bool kUse64Bit = sizeof(*out) == 64 / 8;
++  constexpr bool kUse64Bit = sizeof(*out) > 32 / 8;
+   if (kIsSigned) {
+     if (kUse64Bit) {
+       int64_t val;
+diff --git absl/strings/str_cat.h absl/strings/str_cat.h
+index a94bc5df..7ed7f3e4 100644
+--- absl/strings/str_cat.h
++++ absl/strings/str_cat.h
+@@ -160,9 +160,17 @@ struct Hex {
+       typename std::enable_if<sizeof(Int) == 8 &&
+                               !std::is_pointer<Int>::value>::type* = nullptr)
+       : Hex(spec, static_cast<uint64_t>(v)) {}
++#if __has_feature(capabilities)
++  template <typename Int>
++  explicit Hex(
++      Int v, PadSpec spec = absl::kNoPad,
++      typename std::enable_if<std::is_same_v<Int, intcap_t> ||
++                              std::is_same_v<Int, uintcap_t>>::type* = nullptr)
++      : Hex(spec, static_cast<uint64_t>(v)) {}
++#endif
+   template <typename Pointee>
+   explicit Hex(Pointee* v, PadSpec spec = absl::kNoPad)
+-      : Hex(spec, reinterpret_cast<uintptr_t>(v)) {}
++      : Hex(spec, static_cast<ptraddr_t>(reinterpret_cast<uintptr_t>(v))) {}
+ 
+  private:
+   Hex(PadSpec spec, uint64_t v)
+@@ -255,6 +263,19 @@ class AlphaNum {
+       : piece_(NullSafeStringView(c_str)) {}      // NOLINT(runtime/explicit)
+   AlphaNum(absl::string_view pc) : piece_(pc) {}  // NOLINT(runtime/explicit)
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++  // XXX-AM: We can not use ptraddr_t here because we must retain
++  // the signedness of intptr_t for string conversion purposes.
++  AlphaNum(intptr_t x)  // NOLINT(*)
++      : piece_(digits_, static_cast<size_t>(
++            numbers_internal::FastIntToBuffer(x, digits_) -
++            &digits_[0])) {}
++  AlphaNum(uintptr_t x)  // NOLINT(*)
++      : piece_(digits_, static_cast<size_t>(
++            numbers_internal::FastIntToBuffer(x, digits_) -
++            &digits_[0])) {}
++#endif
++
+   template <typename Allocator>
+   AlphaNum(  // NOLINT(runtime/explicit)
+       const std::basic_string<char, std::char_traits<char>, Allocator>& str)
+diff --git absl/synchronization/internal/create_thread_identity.cc absl/synchronization/internal/create_thread_identity.cc
+index 44e6129b..38e89000 100644
+--- absl/synchronization/internal/create_thread_identity.cc
++++ absl/synchronization/internal/create_thread_identity.cc
+@@ -65,7 +65,7 @@ static void ReclaimThreadIdentity(void* v) {
+ 
+ // Return value rounded up to next multiple of align.
+ // Align must be a power of two.
+-static intptr_t RoundUp(intptr_t addr, intptr_t align) {
++static intptr_t RoundUp(intptr_t addr, ptraddr_t align) {
+   return (addr + align - 1) & ~(align - 1);
+ }
+ 
+diff --git absl/synchronization/internal/graphcycles.cc absl/synchronization/internal/graphcycles.cc
+index 27fec216..3ce92893 100644
+--- absl/synchronization/internal/graphcycles.cc
++++ absl/synchronization/internal/graphcycles.cc
+@@ -336,7 +336,8 @@ class PointerMap {
+   std::array<int32_t, kHashTableSize> table_;
+ 
+   static uint32_t Hash(void* ptr) {
+-    return reinterpret_cast<uintptr_t>(ptr) % kHashTableSize;
++    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ptr) %
++                                 kHashTableSize);
+   }
+ };
+ 
+diff --git absl/synchronization/mutex.cc absl/synchronization/mutex.cc
+index 52e2455d..62cc02ed 100644
+--- absl/synchronization/mutex.cc
++++ absl/synchronization/mutex.cc
+@@ -190,9 +190,9 @@ int MutexDelay(int32_t c, int mode) {
+ // "*pv | bits" if necessary.  Wait until (*pv & wait_until_clear)==0
+ // before making any change.
+ // This is used to set flags in mutex and condition variable words.
+-static void AtomicSetBits(std::atomic<intptr_t>* pv, intptr_t bits,
+-                          intptr_t wait_until_clear) {
+-  intptr_t v;
++static void AtomicSetBits(std::atomic<uintptr_t>* pv, ptraddr_t bits,
++                          ptraddr_t wait_until_clear) {
++  uintptr_t v;
+   do {
+     v = pv->load(std::memory_order_relaxed);
+   } while ((v & bits) != bits &&
+@@ -206,9 +206,9 @@ static void AtomicSetBits(std::atomic<intptr_t>* pv, intptr_t bits,
+ // "*pv & ~bits" if necessary.  Wait until (*pv & wait_until_clear)==0
+ // before making any change.
+ // This is used to unset flags in mutex and condition variable words.
+-static void AtomicClearBits(std::atomic<intptr_t>* pv, intptr_t bits,
+-                            intptr_t wait_until_clear) {
+-  intptr_t v;
++static void AtomicClearBits(std::atomic<uintptr_t>* pv, ptraddr_t bits,
++                            ptraddr_t wait_until_clear) {
++  uintptr_t v;
+   do {
+     v = pv->load(std::memory_order_relaxed);
+   } while ((v & bits) != 0 &&
+@@ -322,10 +322,10 @@ static struct SynchEvent {     // this is a trivial hash table for the events
+ // the string name is copied into it.
+ // When used with a mutex, the caller should also ensure that kMuEvent
+ // is set in the mutex word, and similarly for condition variables and kCVEvent.
+-static SynchEvent *EnsureSynchEvent(std::atomic<intptr_t> *addr,
+-                                    const char *name, intptr_t bits,
+-                                    intptr_t lockbit) {
+-  uint32_t h = reinterpret_cast<intptr_t>(addr) % kNSynchEvent;
++static SynchEvent *EnsureSynchEvent(std::atomic<uintptr_t> *addr,
++                                    const char *name, ptraddr_t bits,
++                                    ptraddr_t lockbit) {
++  uint32_t h = reinterpret_cast<ptraddr_t>(addr) % kNSynchEvent;
+   SynchEvent *e;
+   // first look for existing SynchEvent struct..
+   synch_event_mu.Lock();
+@@ -376,9 +376,9 @@ static void UnrefSynchEvent(SynchEvent *e) {
+ // Forget the mapping from the object (Mutex or CondVar) at address addr
+ // to SynchEvent object, and clear "bits" in its word (waiting until lockbit
+ // is clear before doing so).
+-static void ForgetSynchEvent(std::atomic<intptr_t> *addr, intptr_t bits,
+-                             intptr_t lockbit) {
+-  uint32_t h = reinterpret_cast<intptr_t>(addr) % kNSynchEvent;
++static void ForgetSynchEvent(std::atomic<uintptr_t> *addr, ptraddr_t bits,
++                             ptraddr_t lockbit) {
++  uint32_t h = reinterpret_cast<ptraddr_t>(addr) % kNSynchEvent;
+   SynchEvent **pe;
+   SynchEvent *e;
+   synch_event_mu.Lock();
+@@ -402,7 +402,7 @@ static void ForgetSynchEvent(std::atomic<intptr_t> *addr, intptr_t bits,
+ // "addr", if any.  The pointer returned is valid until the UnrefSynchEvent() is
+ // called.
+ static SynchEvent *GetSynchEvent(const void *addr) {
+-  uint32_t h = reinterpret_cast<intptr_t>(addr) % kNSynchEvent;
++  uint32_t h = reinterpret_cast<ptraddr_t>(addr) % kNSynchEvent;
+   SynchEvent *e;
+   synch_event_mu.Lock();
+   for (e = synch_event[h];
+@@ -479,7 +479,7 @@ struct SynchWaitParams {
+   SynchWaitParams(Mutex::MuHow how_arg, const Condition *cond_arg,
+                   KernelTimeout timeout_arg, Mutex *cvmu_arg,
+                   PerThreadSynch *thread_arg,
+-                  std::atomic<intptr_t> *cv_word_arg)
++                  std::atomic<uintptr_t> *cv_word_arg)
+       : how(how_arg),
+         cond(cond_arg),
+         timeout(timeout_arg),
+@@ -500,7 +500,7 @@ struct SynchWaitParams {
+ 
+   // If not null, thread should be enqueued on the CondVar whose state
+   // word is cv_word instead of queueing normally on the Mutex.
+-  std::atomic<intptr_t> *cv_word;
++  std::atomic<uintptr_t> *cv_word;
+ 
+   int64_t contention_start_cycles;  // Time (in cycles) when this thread started
+                                     // to contend for the mutex.
+@@ -625,11 +625,11 @@ static absl::Time DeadlineFromTimeout(absl::Duration timeout) {
+ //    bit-twiddling trick in Mutex::Unlock().
+ //  o kMuWriter / kMuReader == kMuWrWait / kMuWait,
+ //    to enable the bit-twiddling trick in CheckForMutexCorruption().
+-static const intptr_t kMuReader      = 0x0001L;  // a reader holds the lock
+-static const intptr_t kMuDesig       = 0x0002L;  // there's a designated waker
+-static const intptr_t kMuWait        = 0x0004L;  // threads are waiting
+-static const intptr_t kMuWriter      = 0x0008L;  // a writer holds the lock
+-static const intptr_t kMuEvent       = 0x0010L;  // record this mutex's events
++static const ptraddr_t kMuReader      = 0x0001L;  // a reader holds the lock
++static const ptraddr_t kMuDesig       = 0x0002L;  // there's a designated waker
++static const ptraddr_t kMuWait        = 0x0004L;  // threads are waiting
++static const ptraddr_t kMuWriter      = 0x0008L;  // a writer holds the lock
++static const ptraddr_t kMuEvent       = 0x0010L;  // record this mutex's events
+ // INVARIANT1:  there's a thread that was blocked on the mutex, is
+ // no longer, yet has not yet acquired the mutex.  If there's a
+ // designated waker, all threads can avoid taking the slow path in
+@@ -638,11 +638,11 @@ static const intptr_t kMuEvent       = 0x0010L;  // record this mutex's events
+ // set when a thread is unblocked(INV1a), and threads that were
+ // unblocked reset the bit when they either acquire or re-block
+ // (INV1b).
+-static const intptr_t kMuWrWait      = 0x0020L;  // runnable writer is waiting
+-                                                 // for a reader
+-static const intptr_t kMuSpin        = 0x0040L;  // spinlock protects wait list
+-static const intptr_t kMuLow         = 0x00ffL;  // mask all mutex bits
+-static const intptr_t kMuHigh        = ~kMuLow;  // mask pointer/reader count
++static const ptraddr_t kMuWrWait      = 0x0020L;  // runnable writer is waiting
++                                                  // for a reader
++static const ptraddr_t kMuSpin        = 0x0040L;  // spinlock protects wait list
++static const ptraddr_t kMuLow         = 0x00ffL;  // mask all mutex bits
++static const ptraddr_t kMuHigh        = ~kMuLow;  // mask pointer/reader count
+ 
+ // Hack to make constant values available to gdb pretty printer
+ enum {
+@@ -663,7 +663,7 @@ enum {
+ // number of readers.  Otherwise, the reader count is held in
+ // PerThreadSynch::readers of the most recently queued waiter, again in the
+ // bits above kMuLow.
+-static const intptr_t kMuOne = 0x0100;  // a count of one reader
++static const ptraddr_t kMuOne = 0x0100;  // a count of one reader
+ 
+ // flags passed to Enqueue and LockSlow{,WithTimeout,Loop}
+ static const int kMuHasBlocked = 0x01;  // already blocked (MUST == 1)
+@@ -678,18 +678,18 @@ struct MuHowS {
+   // if all the bits in fast_need_zero are zero, the lock can be acquired by
+   // adding fast_add and oring fast_or.  The bit kMuDesig should be reset iff
+   // this is the designated waker.
+-  intptr_t fast_need_zero;
+-  intptr_t fast_or;
+-  intptr_t fast_add;
+-
+-  intptr_t slow_need_zero;  // fast_need_zero with events (e.g. logging)
+-
+-  intptr_t slow_inc_need_zero;  // if all the bits in slow_inc_need_zero are
+-                                // zero a reader can acquire a read share by
+-                                // setting the reader bit and incrementing
+-                                // the reader count (in last waiter since
+-                                // we're now slow-path).  kMuWrWait be may
+-                                // be ignored if we already waited once.
++  ptraddr_t fast_need_zero;
++  ptraddr_t fast_or;
++  ptraddr_t fast_add;
++
++  ptraddr_t slow_need_zero;  // fast_need_zero with events (e.g. logging)
++
++  ptraddr_t slow_inc_need_zero;  // if all the bits in slow_inc_need_zero are
++                                 // zero a reader can acquire a read share by
++                                 // setting the reader bit and incrementing
++                                 // the reader count (in last waiter since
++                                 // we're now slow-path).  kMuWrWait be may
++                                 // be ignored if we already waited once.
+ };
+ 
+ static const MuHowS kSharedS = {
+@@ -706,7 +706,7 @@ static const MuHowS kExclusiveS = {
+     kMuWriter,                         // fast_or
+     0,                                 // fast_add
+     kMuWriter | kMuReader,             // slow_need_zero
+-    ~static_cast<intptr_t>(0),         // slow_inc_need_zero
++    ~static_cast<ptraddr_t>(0),        // slow_inc_need_zero
+ };
+ static const Mutex::MuHow kShared = &kSharedS;        // shared lock
+ static const Mutex::MuHow kExclusive = &kExclusiveS;  // exclusive lock
+@@ -728,7 +728,7 @@ static bool DebugOnlyIsExiting() {
+ }
+ 
+ Mutex::~Mutex() {
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   if ((v & kMuEvent) != 0 && !DebugOnlyIsExiting()) {
+     ForgetSynchEvent(&this->mu_, kMuEvent, kMuSpin);
+   }
+@@ -775,7 +775,7 @@ static bool MuEquivalentWaiter(PerThreadSynch *x, PerThreadSynch *y) {
+ 
+ // Given the contents of a mutex word containing a PerThreadSynch pointer,
+ // return the pointer.
+-static inline PerThreadSynch *GetPerThreadSynch(intptr_t v) {
++static inline PerThreadSynch *GetPerThreadSynch(uintptr_t v) {
+   return reinterpret_cast<PerThreadSynch *>(v & kMuHigh);
+ }
+ 
+@@ -887,7 +887,7 @@ static void CondVarEnqueue(SynchWaitParams *waitp);
+ // condition variable queue instead of the mutex queue in implementing Wait().
+ // In this case, Enqueue() can return nullptr (if head==nullptr).
+ static PerThreadSynch *Enqueue(PerThreadSynch *head,
+-                               SynchWaitParams *waitp, intptr_t mu, int flags) {
++                               SynchWaitParams *waitp, uintptr_t mu, int flags) {
+   // If we have been given a cv_word, call CondVarEnqueue() and return
+   // the previous head of the Mutex waiter queue.
+   if (waitp->cv_word != nullptr) {
+@@ -1065,7 +1065,7 @@ static PerThreadSynch *DequeueAllWakeable(PerThreadSynch *head,
+ // Does nothing if s is not on the waiter list.
+ void Mutex::TryRemove(PerThreadSynch *s) {
+   SchedulingGuard::ScopedDisable disable_rescheduling;
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   // acquire spinlock & lock
+   if ((v & (kMuWait | kMuSpin | kMuWriter | kMuReader)) == kMuWait &&
+       mu_.compare_exchange_strong(v, v | kMuSpin | kMuWriter,
+@@ -1100,12 +1100,13 @@ void Mutex::TryRemove(PerThreadSynch *s) {
+         s->state.store(PerThreadSynch::kAvailable, std::memory_order_release);
+       }
+     }
+-    intptr_t nv;
++    uintptr_t nv;
+     do {                        // release spinlock and lock
+       v = mu_.load(std::memory_order_relaxed);
+       nv = v & (kMuDesig | kMuEvent);
+       if (h != nullptr) {
+-        nv |= kMuWait | reinterpret_cast<intptr_t>(h);
++        nv = reinterpret_cast<uintptr_t>(h) | static_cast<ptraddr_t>(nv) |
++             kMuWait;
+         h->readers = 0;            // we hold writer lock
+         h->maybe_unlocking = false;  // finished unlocking
+       }
+@@ -1451,10 +1452,10 @@ void Mutex::AssertNotHeld() const {
+ 
+ // Attempt to acquire *mu, and return whether successful.  The implementation
+ // may spin for a short while if the lock cannot be acquired immediately.
+-static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
++static bool TryAcquireWithSpinning(std::atomic<uintptr_t>* mu) {
+   int c = GetMutexGlobals().spinloop_iterations;
+   do {  // do/while somewhat faster on AMD
+-    intptr_t v = mu->load(std::memory_order_relaxed);
++    uintptr_t v = mu->load(std::memory_order_relaxed);
+     if ((v & (kMuReader|kMuEvent)) != 0) {
+       return false;  // a reader or tracing -> give up
+     } else if (((v & kMuWriter) == 0) &&  // no holder -> try to acquire
+@@ -1470,7 +1471,7 @@ static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
+ ABSL_XRAY_LOG_ARGS(1) void Mutex::Lock() {
+   ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
+   GraphId id = DebugOnlyDeadlockCheck(this);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   // try fast acquire, then spin loop
+   if ((v & (kMuWriter | kMuReader | kMuEvent)) != 0 ||
+       !mu_.compare_exchange_strong(v, kMuWriter | v,
+@@ -1488,7 +1489,7 @@ ABSL_XRAY_LOG_ARGS(1) void Mutex::Lock() {
+ ABSL_XRAY_LOG_ARGS(1) void Mutex::ReaderLock() {
+   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
+   GraphId id = DebugOnlyDeadlockCheck(this);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   // try fast acquire, then slow loop
+   if ((v & (kMuWriter | kMuWait | kMuEvent)) != 0 ||
+       !mu_.compare_exchange_strong(v, (kMuReader | v) + kMuOne,
+@@ -1600,7 +1601,7 @@ bool Mutex::AwaitCommon(const Condition &cond, KernelTimeout t) {
+ 
+ ABSL_XRAY_LOG_ARGS(1) bool Mutex::TryLock() {
+   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_lock);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   if ((v & (kMuWriter | kMuReader | kMuEvent)) == 0 &&  // try fast acquire
+       mu_.compare_exchange_strong(v, kMuWriter | v,
+                                   std::memory_order_acquire,
+@@ -1630,7 +1631,7 @@ ABSL_XRAY_LOG_ARGS(1) bool Mutex::TryLock() {
+ ABSL_XRAY_LOG_ARGS(1) bool Mutex::ReaderTryLock() {
+   ABSL_TSAN_MUTEX_PRE_LOCK(this,
+                            __tsan_mutex_read_lock | __tsan_mutex_try_lock);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   // The while-loops (here and below) iterate only if the mutex word keeps
+   // changing (typically because the reader count changes) under the CAS.  We
+   // limit the number of attempts to avoid having to think about livelock.
+@@ -1676,7 +1677,7 @@ ABSL_XRAY_LOG_ARGS(1) bool Mutex::ReaderTryLock() {
+ ABSL_XRAY_LOG_ARGS(1) void Mutex::Unlock() {
+   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
+   DebugOnlyLockLeave(this);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+ 
+   if (kDebugMode && ((v & (kMuWriter | kMuReader)) != kMuWriter)) {
+     ABSL_RAW_LOG(FATAL, "Mutex unlocked when destroyed or not locked: v=0x%x",
+@@ -1690,8 +1691,8 @@ ABSL_XRAY_LOG_ARGS(1) void Mutex::Unlock() {
+   // But, we can use an alternate computation of it, that compilers
+   // currently don't find on their own.  When that changes, this function
+   // can be simplified.
+-  intptr_t x = (v ^ (kMuWriter | kMuWait)) & (kMuWriter | kMuEvent);
+-  intptr_t y = (v ^ (kMuWriter | kMuWait)) & (kMuWait | kMuDesig);
++  uintptr_t x = (v ^ (kMuWriter | kMuWait)) & (kMuWriter | kMuEvent);
++  uintptr_t y = (v ^ (kMuWriter | kMuWait)) & (kMuWait | kMuDesig);
+   // Claim: "x == 0 && y > 0" is equal to should_try_cas.
+   // Also, because kMuWriter and kMuEvent exceed kMuDesig and kMuWait,
+   // all possible non-zero values for x exceed all possible values for y.
+@@ -1715,24 +1716,24 @@ ABSL_XRAY_LOG_ARGS(1) void Mutex::Unlock() {
+ }
+ 
+ // Requires v to represent a reader-locked state.
+-static bool ExactlyOneReader(intptr_t v) {
++static bool ExactlyOneReader(uintptr_t v) {
+   assert((v & (kMuWriter|kMuReader)) == kMuReader);
+   assert((v & kMuHigh) != 0);
+   // The more straightforward "(v & kMuHigh) == kMuOne" also works, but
+   // on some architectures the following generates slightly smaller code.
+   // It may be faster too.
+-  constexpr intptr_t kMuMultipleWaitersMask = kMuHigh ^ kMuOne;
++  constexpr ptraddr_t kMuMultipleWaitersMask = kMuHigh ^ kMuOne;
+   return (v & kMuMultipleWaitersMask) == 0;
+ }
+ 
+ ABSL_XRAY_LOG_ARGS(1) void Mutex::ReaderUnlock() {
+   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, __tsan_mutex_read_lock);
+   DebugOnlyLockLeave(this);
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   assert((v & (kMuWriter|kMuReader)) == kMuReader);
+   if ((v & (kMuReader|kMuWait|kMuEvent)) == kMuReader) {
+     // fast reader release (reader with no waiters)
+-    intptr_t clear = ExactlyOneReader(v) ? kMuReader|kMuOne : kMuOne;
++    uintptr_t clear = ExactlyOneReader(v) ? kMuReader|kMuOne : kMuOne;
+     if (mu_.compare_exchange_strong(v, v - clear,
+                                     std::memory_order_release,
+                                     std::memory_order_relaxed)) {
+@@ -1746,28 +1747,28 @@ ABSL_XRAY_LOG_ARGS(1) void Mutex::ReaderUnlock() {
+ 
+ // Clears the designated waker flag in the mutex if this thread has blocked, and
+ // therefore may be the designated waker.
+-static intptr_t ClearDesignatedWakerMask(int flag) {
++static ptraddr_t ClearDesignatedWakerMask(int flag) {
+   assert(flag >= 0);
+   assert(flag <= 1);
+   switch (flag) {
+     case 0:  // not blocked
+-      return ~static_cast<intptr_t>(0);
++      return ~static_cast<ptraddr_t>(0);
+     case 1:  // blocked; turn off the designated waker bit
+-      return ~static_cast<intptr_t>(kMuDesig);
++      return ~kMuDesig;
+   }
+   ABSL_INTERNAL_UNREACHABLE;
+ }
+ 
+ // Conditionally ignores the existence of waiting writers if a reader that has
+ // already blocked once wakes up.
+-static intptr_t IgnoreWaitingWritersMask(int flag) {
++static ptraddr_t IgnoreWaitingWritersMask(int flag) {
+   assert(flag >= 0);
+   assert(flag <= 1);
+   switch (flag) {
+     case 0:  // not blocked
+-      return ~static_cast<intptr_t>(0);
++      return ~static_cast<ptraddr_t>(0);
+     case 1:  // blocked; pretend there are no waiting writers
+-      return ~static_cast<intptr_t>(kMuWrWait);
++      return ~kMuWrWait;
+   }
+   ABSL_INTERNAL_UNREACHABLE;
+ }
+@@ -1858,7 +1859,7 @@ static inline bool EvalConditionIgnored(Mutex *mu, const Condition *cond) {
+ //   Await,  LockWhen) so contention profiling should be suppressed.
+ bool Mutex::LockSlowWithDeadline(MuHow how, const Condition *cond,
+                                  KernelTimeout t, int flags) {
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   bool unlock = false;
+   if ((v & how->fast_need_zero) == 0 &&  // try fast acquire
+       mu_.compare_exchange_strong(
+@@ -1900,11 +1901,11 @@ bool Mutex::LockSlowWithDeadline(MuHow how, const Condition *cond,
+     }                                                              \
+   } while (0)
+ 
+-static void CheckForMutexCorruption(intptr_t v, const char* label) {
++static void CheckForMutexCorruption(uintptr_t v, const char* label) {
+   // Test for either of two situations that should not occur in v:
+   //   kMuWriter and kMuReader
+   //   kMuWrWait and !kMuWait
+-  const uintptr_t w = v ^ kMuWait;
++  const ptraddr_t w = static_cast<ptraddr_t>(v ^ kMuWait);
+   // By flipping that bit, we can now test for:
+   //   kMuWriter and kMuReader in w
+   //   kMuWrWait and kMuWait in w
+@@ -1926,7 +1927,7 @@ static void CheckForMutexCorruption(intptr_t v, const char* label) {
+ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+   SchedulingGuard::ScopedDisable disable_rescheduling;
+   int c = 0;
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   if ((v & kMuEvent) != 0) {
+     PostSynchEvent(this,
+          waitp->how == kExclusive?  SYNCH_EV_LOCK: SYNCH_EV_READERLOCK);
+@@ -1959,7 +1960,7 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+       if ((v & (kMuSpin|kMuWait)) == 0) {   // no waiters
+         // This thread tries to become the one and only waiter.
+         PerThreadSynch *new_h = Enqueue(nullptr, waitp, v, flags);
+-        intptr_t nv =
++        uintptr_t nv =
+             (v & ClearDesignatedWakerMask(flags & kMuHasBlocked) & kMuLow) |
+             kMuWait;
+         ABSL_RAW_CHECK(new_h != nullptr, "Enqueue to empty list failed");
+@@ -1967,10 +1968,11 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+           nv |= kMuWrWait;
+         }
+         if (mu_.compare_exchange_strong(
+-                v, reinterpret_cast<intptr_t>(new_h) | nv,
++                v,
++                reinterpret_cast<uintptr_t>(new_h) | static_cast<ptraddr_t>(nv),
+                 std::memory_order_release, std::memory_order_relaxed)) {
+           dowait = true;
+-        } else {            // attempted Enqueue() failed
++        } else {  // attempted Enqueue() failed
+           // zero out the waitp field set by Enqueue()
+           waitp->thread->waitp = nullptr;
+         }
+@@ -2008,7 +2010,7 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+                      std::memory_order_acquire, std::memory_order_relaxed)) {
+         PerThreadSynch *h = GetPerThreadSynch(v);
+         PerThreadSynch *new_h = Enqueue(h, waitp, v, flags);
+-        intptr_t wr_wait = 0;
++        uintptr_t wr_wait = 0;
+         ABSL_RAW_CHECK(new_h != nullptr, "Enqueue to list failed");
+         if (waitp->how == kExclusive && (v & kMuReader) != 0) {
+           wr_wait = kMuWrWait;      // give priority to a waiting writer
+@@ -2016,8 +2018,10 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+         do {                        // release spinlock
+           v = mu_.load(std::memory_order_relaxed);
+         } while (!mu_.compare_exchange_weak(
+-            v, (v & (kMuLow & ~kMuSpin)) | kMuWait | wr_wait |
+-            reinterpret_cast<intptr_t>(new_h),
++            v,
++            (static_cast<ptraddr_t>(v) & (kMuLow & ~kMuSpin)) | kMuWait |
++                static_cast<ptraddr_t>(wr_wait) |
++                reinterpret_cast<uintptr_t>(new_h),
+             std::memory_order_release, std::memory_order_relaxed));
+         dowait = true;
+       }
+@@ -2050,7 +2054,7 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
+ // itself on the mutex/condvar to wait for its condition to become true.
+ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+   SchedulingGuard::ScopedDisable disable_rescheduling;
+-  intptr_t v = mu_.load(std::memory_order_relaxed);
++  uintptr_t v = mu_.load(std::memory_order_relaxed);
+   this->AssertReaderHeld();
+   CheckForMutexCorruption(v, "Unlock");
+   if ((v & kMuEvent) != 0) {
+@@ -2067,7 +2071,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+   // a condition that's known to be false.
+   const Condition *known_false = nullptr;
+   PerThreadSynch *wake_list = kPerThreadSynchNull;   // list of threads to wake
+-  intptr_t wr_wait = 0;        // set to kMuWrWait if we wake a reader and a
++  uintptr_t wr_wait = 0;        // set to kMuWrWait if we wake a reader and a
+                                // later writer could have acquired the lock
+                                // (starvation avoidance)
+   ABSL_RAW_CHECK(waitp == nullptr || waitp->thread->waitp == nullptr ||
+@@ -2088,7 +2092,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+       }
+     } else if ((v & (kMuReader | kMuWait)) == kMuReader && waitp == nullptr) {
+       // fast reader release (reader with no waiters)
+-      intptr_t clear = ExactlyOneReader(v) ? kMuReader | kMuOne : kMuOne;
++      ptraddr_t clear = ExactlyOneReader(v) ? kMuReader | kMuOne : kMuOne;
+       if (mu_.compare_exchange_strong(v, v - clear,
+                                       std::memory_order_release,
+                                       std::memory_order_relaxed)) {
+@@ -2099,14 +2103,14 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+                                            std::memory_order_acquire,
+                                            std::memory_order_relaxed)) {
+       if ((v & kMuWait) == 0) {       // no one to wake
+-        intptr_t nv;
++        uintptr_t nv;
+         bool do_enqueue = true;  // always Enqueue() the first time
+         ABSL_RAW_CHECK(waitp != nullptr,
+                        "UnlockSlow is confused");  // about to sleep
+         do {    // must loop to release spinlock as reader count may change
+           v = mu_.load(std::memory_order_relaxed);
+           // decrement reader count if there are readers
+-          intptr_t new_readers = (v >= kMuOne)?  v - kMuOne : v;
++          uintptr_t new_readers = (v >= kMuOne)?  v - kMuOne : v;
+           PerThreadSynch *new_h = nullptr;
+           if (do_enqueue) {
+             // If we are enqueuing on a CondVar (waitp->cv_word != nullptr) then
+@@ -2116,13 +2120,15 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+             do_enqueue = (waitp->cv_word == nullptr);
+             new_h = Enqueue(nullptr, waitp, new_readers, kMuIsCond);
+           }
+-          intptr_t clear = kMuWrWait | kMuWriter;  // by default clear write bit
++          ptraddr_t clear =
++              kMuWrWait | kMuWriter;  // by default clear write bit
+           if ((v & kMuWriter) == 0 && ExactlyOneReader(v)) {  // last reader
+             clear = kMuWrWait | kMuReader;                    // clear read bit
+           }
+           nv = (v & kMuLow & ~clear & ~kMuSpin);
+           if (new_h != nullptr) {
+-            nv |= kMuWait | reinterpret_cast<intptr_t>(new_h);
++            nv = reinterpret_cast<uintptr_t>(new_h) |
++                 static_cast<ptraddr_t>(nv) | kMuWait;
+           } else {  // new_h could be nullptr if we queued ourselves on a
+                     // CondVar
+             // In that case, we must place the reader count back in the mutex
+@@ -2143,13 +2149,14 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+       if ((v & kMuReader) != 0 && (h->readers & kMuHigh) > kMuOne) {
+         // a reader but not the last
+         h->readers -= kMuOne;  // release our lock
+-        intptr_t nv = v;       // normally just release spinlock
++        uintptr_t nv = v;       // normally just release spinlock
+         if (waitp != nullptr) {  // but waitp!=nullptr => must queue ourselves
+           PerThreadSynch *new_h = Enqueue(h, waitp, v, kMuIsCond);
+           ABSL_RAW_CHECK(new_h != nullptr,
+                          "waiters disappeared during Enqueue()!");
+           nv &= kMuLow;
+-          nv |= kMuWait | reinterpret_cast<intptr_t>(new_h);
++          nv = reinterpret_cast<uintptr_t>(new_h) | static_cast<ptraddr_t>(nv) |
++               kMuWait;
+         }
+         mu_.store(nv, std::memory_order_release);  // release spinlock
+         // can release with a store because there were waiters
+@@ -2198,14 +2205,15 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+         // old_h if it's set.  If old_h==h, there's no one to wakeup at all.
+         if (old_h == h) {      // we've searched before, and nothing's new
+                                // so there's no one to wake.
+-          intptr_t nv = (v & ~(kMuReader|kMuWriter|kMuWrWait));
++          uintptr_t nv = (v & ~(kMuReader|kMuWriter|kMuWrWait));
+           h->readers = 0;
+           h->maybe_unlocking = false;   // finished unlocking
+           if (waitp != nullptr) {       // we must queue ourselves and sleep
+             PerThreadSynch *new_h = Enqueue(h, waitp, v, kMuIsCond);
+             nv &= kMuLow;
+             if (new_h != nullptr) {
+-              nv |= kMuWait | reinterpret_cast<intptr_t>(new_h);
++              nv = reinterpret_cast<uintptr_t>(new_h) |
++                   static_cast<ptraddr_t>(nv) | kMuWait;
+             }  // else new_h could be nullptr if we queued ourselves on a
+                // CondVar
+           }
+@@ -2302,7 +2310,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+       // singly-linked list wake_list.  Returns the new head.
+       h = DequeueAllWakeable(h, pw, &wake_list);
+ 
+-      intptr_t nv = (v & kMuEvent) | kMuDesig;
++      uintptr_t nv = (v & kMuEvent) | kMuDesig;
+                                              // assume no waiters left,
+                                              // set kMuDesig for INV1a
+ 
+@@ -2318,7 +2326,8 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+       if (h != nullptr) {  // there are waiters left
+         h->readers = 0;
+         h->maybe_unlocking = false;     // finished unlocking
+-        nv |= wr_wait | kMuWait | reinterpret_cast<intptr_t>(h);
++        nv = reinterpret_cast<uintptr_t>(h) | static_cast<ptraddr_t>(wr_wait) |
++             static_cast<ptraddr_t>(nv) | kMuWait;
+       }
+ 
+       // release both spinlock & lock
+@@ -2378,14 +2387,14 @@ void Mutex::Fer(PerThreadSynch *w) {
+   ABSL_RAW_CHECK(w->waitp->cv_word == nullptr,
+                  "Mutex::Fer with pending CondVar queueing");
+   for (;;) {
+-    intptr_t v = mu_.load(std::memory_order_relaxed);
++    uintptr_t v = mu_.load(std::memory_order_relaxed);
+     // Note: must not queue if the mutex is unlocked (nobody will wake it).
+     // For example, we can have only kMuWait (conditional) or maybe
+     // kMuWait|kMuWrWait.
+     // conflicting != 0 implies that the waking thread cannot currently take
+     // the mutex, which in turn implies that someone else has it and can wake
+     // us if we queue.
+-    const intptr_t conflicting =
++    const ptraddr_t conflicting =
+         kMuWriter | (w->waitp->how == kShared ? 0 : kMuReader);
+     if ((v & conflicting) == 0) {
+       w->next = nullptr;
+@@ -2399,7 +2408,9 @@ void Mutex::Fer(PerThreadSynch *w) {
+         ABSL_RAW_CHECK(new_h != nullptr,
+                        "Enqueue failed");  // we must queue ourselves
+         if (mu_.compare_exchange_strong(
+-                v, reinterpret_cast<intptr_t>(new_h) | (v & kMuLow) | kMuWait,
++                v,
++                reinterpret_cast<uintptr_t>(new_h) |
++                    (static_cast<ptraddr_t>(v) & kMuLow) | kMuWait,
+                 std::memory_order_release, std::memory_order_relaxed)) {
+           return;
+         }
+@@ -2413,8 +2424,8 @@ void Mutex::Fer(PerThreadSynch *w) {
+           v = mu_.load(std::memory_order_relaxed);
+         } while (!mu_.compare_exchange_weak(
+             v,
+-            (v & kMuLow & ~kMuSpin) | kMuWait |
+-                reinterpret_cast<intptr_t>(new_h),
++            reinterpret_cast<uintptr_t>(new_h) |
++                (static_cast<ptraddr_t>(v) & kMuLow & ~kMuSpin) | kMuWait,
+             std::memory_order_release, std::memory_order_relaxed));
+         return;
+       }
+@@ -2442,10 +2453,10 @@ void Mutex::AssertReaderHeld() const {
+ }
+ 
+ // -------------------------------- condition variables
+-static const intptr_t kCvSpin = 0x0001L;   // spinlock protects waiter list
+-static const intptr_t kCvEvent = 0x0002L;  // record events
++static const ptraddr_t kCvSpin = 0x0001L;   // spinlock protects waiter list
++static const ptraddr_t kCvEvent = 0x0002L;  // record events
+ 
+-static const intptr_t kCvLow = 0x0003L;  // low order bits of CV
++static const ptraddr_t kCvLow = 0x0003L;  // low order bits of CV
+ 
+ // Hack to make constant values available to gdb pretty printer
+ enum { kGdbCvSpin = kCvSpin, kGdbCvEvent = kCvEvent, kGdbCvLow = kCvLow, };
+@@ -2469,7 +2480,7 @@ CondVar::~CondVar() {
+ // Remove thread s from the list of waiters on this condition variable.
+ void CondVar::Remove(PerThreadSynch *s) {
+   SchedulingGuard::ScopedDisable disable_rescheduling;
+-  intptr_t v;
++  uintptr_t v;
+   int c = 0;
+   for (v = cv_.load(std::memory_order_relaxed);;
+        v = cv_.load(std::memory_order_relaxed)) {
+@@ -2493,7 +2504,8 @@ void CondVar::Remove(PerThreadSynch *s) {
+         }
+       }
+                                       // release spinlock
+-      cv_.store((v & kCvEvent) | reinterpret_cast<intptr_t>(h),
++      cv_.store(reinterpret_cast<uintptr_t>(h) |
++                    (static_cast<ptraddr_t>(v) & kCvEvent),
+                 std::memory_order_release);
+       return;
+     } else {
+@@ -2522,10 +2534,10 @@ static void CondVarEnqueue(SynchWaitParams *waitp) {
+   // must do this before we queue ourselves so that cv_word will be null
+   // when seen by the dequeuer, who may wish immediately to requeue
+   // this thread on another queue.
+-  std::atomic<intptr_t> *cv_word = waitp->cv_word;
++  std::atomic<uintptr_t> *cv_word = waitp->cv_word;
+   waitp->cv_word = nullptr;
+ 
+-  intptr_t v = cv_word->load(std::memory_order_relaxed);
++  uintptr_t v = cv_word->load(std::memory_order_relaxed);
+   int c = 0;
+   while ((v & kCvSpin) != 0 ||  // acquire spinlock
+          !cv_word->compare_exchange_weak(v, v | kCvSpin,
+@@ -2545,19 +2557,20 @@ static void CondVarEnqueue(SynchWaitParams *waitp) {
+   }
+   waitp->thread->state.store(PerThreadSynch::kQueued,
+                              std::memory_order_relaxed);
+-  cv_word->store((v & kCvEvent) | reinterpret_cast<intptr_t>(waitp->thread),
++  cv_word->store((static_cast<ptraddr_t>(v) & kCvEvent) |
++                     reinterpret_cast<uintptr_t>(waitp->thread),
+                  std::memory_order_release);
+ }
+ 
+ bool CondVar::WaitCommon(Mutex *mutex, KernelTimeout t) {
+   bool rc = false;          // return value; true iff we timed-out
+ 
+-  intptr_t mutex_v = mutex->mu_.load(std::memory_order_relaxed);
++  uintptr_t mutex_v = mutex->mu_.load(std::memory_order_relaxed);
+   Mutex::MuHow mutex_how = ((mutex_v & kMuWriter) != 0) ? kExclusive : kShared;
+   ABSL_TSAN_MUTEX_PRE_UNLOCK(mutex, TsanFlags(mutex_how));
+ 
+   // maybe trace this call
+-  intptr_t v = cv_.load(std::memory_order_relaxed);
++  uintptr_t v = cv_.load(std::memory_order_relaxed);
+   cond_var_tracer("Wait", this);
+   if ((v & kCvEvent) != 0) {
+     PostSynchEvent(this, SYNCH_EV_WAIT);
+@@ -2649,7 +2662,7 @@ void CondVar::Wakeup(PerThreadSynch *w) {
+ void CondVar::Signal() {
+   SchedulingGuard::ScopedDisable disable_rescheduling;
+   ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
+-  intptr_t v;
++  uintptr_t v;
+   int c = 0;
+   for (v = cv_.load(std::memory_order_relaxed); v != 0;
+        v = cv_.load(std::memory_order_relaxed)) {
+@@ -2668,7 +2681,8 @@ void CondVar::Signal() {
+         }
+       }
+                                       // release spinlock
+-      cv_.store((v & kCvEvent) | reinterpret_cast<intptr_t>(h),
++      cv_.store(reinterpret_cast<uintptr_t>(h) |
++                    (static_cast<ptraddr_t>(v) & kCvEvent),
+                 std::memory_order_release);
+       if (w != nullptr) {
+         CondVar::Wakeup(w);                // wake waiter, if there was one
+@@ -2688,7 +2702,7 @@ void CondVar::Signal() {
+ 
+ void CondVar::SignalAll () {
+   ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
+-  intptr_t v;
++  uintptr_t v;
+   int c = 0;
+   for (v = cv_.load(std::memory_order_relaxed); v != 0;
+        v = cv_.load(std::memory_order_relaxed)) {
+diff --git absl/synchronization/mutex.h absl/synchronization/mutex.h
+index b69b7089..4e601362 100644
+--- absl/synchronization/mutex.h
++++ absl/synchronization/mutex.h
+@@ -460,7 +460,7 @@ class ABSL_LOCKABLE Mutex {
+   static void InternalAttemptToUseMutexInFatalSignalHandler();
+ 
+  private:
+-  std::atomic<intptr_t> mu_;  // The Mutex state.
++  std::atomic<uintptr_t> mu_;  // The Mutex state.
+ 
+   // Post()/Wait() versus associated PerThreadSem; in class for required
+   // friendship with PerThreadSem.
+@@ -864,7 +864,7 @@ class CondVar {
+   bool WaitCommon(Mutex *mutex, synchronization_internal::KernelTimeout t);
+   void Remove(base_internal::PerThreadSynch *s);
+   void Wakeup(base_internal::PerThreadSynch *w);
+-  std::atomic<intptr_t> cv_;  // Condition variable state.
++  std::atomic<uintptr_t> cv_;  // Condition variable state.
+   CondVar(const CondVar&) = delete;
+   CondVar& operator=(const CondVar&) = delete;
+ };
+diff --git absl/time/civil_time_test.cc absl/time/civil_time_test.cc
+index 0ebd97ad..c75fc31f 100644
+--- absl/time/civil_time_test.cc
++++ absl/time/civil_time_test.cc
+@@ -14,6 +14,7 @@
+ 
+ #include "absl/time/civil_time.h"
+ 
++#include <iomanip>
+ #include <limits>
+ #include <sstream>
+ #include <type_traits>
+diff --git absl/types/CMakeLists.txt absl/types/CMakeLists.txt
+index 830953ae..b0756265 100644
+--- absl/types/CMakeLists.txt
++++ absl/types/CMakeLists.txt
+@@ -57,51 +57,52 @@ absl_cc_library(
+     absl::raw_logging_internal
+ )
+ 
+-absl_cc_test(
+-  NAME
+-    any_test
+-  SRCS
+-    "any_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-  DEPS
+-    absl::any
+-    absl::config
+-    absl::exception_testing
+-    absl::raw_logging_internal
+-    absl::test_instance_tracker
+-    GTest::gmock_main
+-)
++# XXX-AM: Temporarily disable these because of RTTI
++# absl_cc_test(
++#   NAME
++#     any_test
++#   SRCS
++#     "any_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#   DEPS
++#     absl::any
++#     absl::config
++#     absl::exception_testing
++#     absl::raw_logging_internal
++#     absl::test_instance_tracker
++#     GTest::gmock_main
++# )
+ 
+-absl_cc_test(
+-  NAME
+-    any_test_noexceptions
+-  SRCS
+-    "any_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-  DEPS
+-    absl::any
+-    absl::config
+-    absl::exception_testing
+-    absl::raw_logging_internal
+-    absl::test_instance_tracker
+-    GTest::gmock_main
+-)
++# absl_cc_test(
++#   NAME
++#     any_test_noexceptions
++#   SRCS
++#     "any_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#   DEPS
++#     absl::any
++#     absl::config
++#     absl::exception_testing
++#     absl::raw_logging_internal
++#     absl::test_instance_tracker
++#     GTest::gmock_main
++# )
+ 
+-absl_cc_test(
+-  NAME
+-    any_exception_safety_test
+-  SRCS
+-    "any_exception_safety_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-  DEPS
+-    absl::any
+-    absl::config
+-    absl::exception_safety_testing
+-    GTest::gmock_main
+-)
++# absl_cc_test(
++#   NAME
++#     any_exception_safety_test
++#   SRCS
++#     "any_exception_safety_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#   DEPS
++#     absl::any
++#     absl::config
++#     absl::exception_safety_testing
++#     GTest::gmock_main
++# )
+ 
+ absl_cc_library(
+   NAME
+@@ -241,57 +242,58 @@ absl_cc_test(
+ )
+ 
+ # Internal-only target, do not depend on directly.
+-absl_cc_library(
+-  NAME
+-    conformance_testing
+-  HDRS
+-    "internal/conformance_aliases.h"
+-    "internal/conformance_archetype.h"
+-    "internal/conformance_profile.h"
+-    "internal/conformance_testing.h"
+-    "internal/conformance_testing_helpers.h"
+-    "internal/parentheses.h"
+-    "internal/transform_args.h"
+-  COPTS
+-    ${ABSL_DEFAULT_COPTS}
+-  DEPS
+-    absl::algorithm
+-    absl::debugging
+-    absl::type_traits
+-    absl::strings
+-    absl::utility
+-    GTest::gmock_main
+-  TESTONLY
+-)
++# XXX-AM: Disable temporarily because of RTTI
++# absl_cc_library(
++#   NAME
++#     conformance_testing
++#   HDRS
++#     "internal/conformance_aliases.h"
++#     "internal/conformance_archetype.h"
++#     "internal/conformance_profile.h"
++#     "internal/conformance_testing.h"
++#     "internal/conformance_testing_helpers.h"
++#     "internal/parentheses.h"
++#     "internal/transform_args.h"
++#   COPTS
++#     ${ABSL_DEFAULT_COPTS}
++#   DEPS
++#     absl::algorithm
++#     absl::debugging
++#     absl::type_traits
++#     absl::strings
++#     absl::utility
++#     GTest::gmock_main
++#   TESTONLY
++# )
+ 
+-absl_cc_test(
+-  NAME
+-    conformance_testing_test
+-  SRCS
+-    "internal/conformance_testing_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-    ${ABSL_EXCEPTIONS_FLAG}
+-  LINKOPTS
+-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+-  DEPS
+-    absl::conformance_testing
+-    absl::type_traits
+-    GTest::gmock_main
+-)
++# absl_cc_test(
++#   NAME
++#     conformance_testing_test
++#   SRCS
++#     "internal/conformance_testing_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#     ${ABSL_EXCEPTIONS_FLAG}
++#   LINKOPTS
++#     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
++#   DEPS
++#     absl::conformance_testing
++#     absl::type_traits
++#     GTest::gmock_main
++# )
+ 
+-absl_cc_test(
+-  NAME
+-    conformance_testing_test_no_exceptions
+-  SRCS
+-    "internal/conformance_testing_test.cc"
+-  COPTS
+-    ${ABSL_TEST_COPTS}
+-  DEPS
+-    absl::conformance_testing
+-    absl::type_traits
+-    GTest::gmock_main
+-)
++# absl_cc_test(
++#   NAME
++#     conformance_testing_test_no_exceptions
++#   SRCS
++#     "internal/conformance_testing_test.cc"
++#   COPTS
++#     ${ABSL_TEST_COPTS}
++#   DEPS
++#     absl::conformance_testing
++#     absl::type_traits
++#     GTest::gmock_main
++# )
+ 
+ absl_cc_library(
+   NAME
