@@ -69,7 +69,7 @@ index eb174a4..8267136 100644
  	    if (FcPatternObjectGetString (font, FC_FILE_OBJECT,
  					  0, &font_file) == FcResultMatch)
 diff --git src/fccharset.c src/fccharset.c
-index cd927d9..f0b87a7 100644
+index 832649c..cde51ca 100644
 --- src/fccharset.c
 +++ src/fccharset.c
 @@ -37,8 +37,8 @@ FcCharSetCreate (void)
@@ -179,22 +179,24 @@ index cd927d9..f0b87a7 100644
  	return FcTrue;
      }
      pos = -pos - 1;
-@@ -555,8 +556,14 @@ FcCharSetMerge (FcCharSet *a, const FcCharSet *b, FcBool *changed)
- 	    }
- 	    else
- 	    {
-+/*
-+ * TODO: add cheri support.
-+ * foot(1) terminal crashes here.
-+ */
-+#if 0
- 		FcCharLeaf *al = FcCharSetLeaf(a, ai);
- 		FcCharSetUnionLeaf (al, al, bl);
-+#endif
- 	    }
+@@ -841,14 +842,14 @@ FcNameParseRange (FcChar8 **string, FcChar32 *pfirst, FcChar32 *plast)
+ 	char *t;
+ 	long first, last;
  
- 	    ai++;
-@@ -1177,24 +1184,20 @@ FcCharSetFreezeBase (FcCharSetFreezer *freezer, FcCharSet *fcs)
+-	while (isspace(*s))
++	while (isspace((unsigned char) *s))
+ 	    s++;
+ 	t = s;
+ 	errno = 0;
+ 	first = last = strtol (s, &s, 16);
+ 	if (errno)
+ 	    return FcFalse;
+-	while (isspace(*s))
++	while (isspace((unsigned char) *s))
+ 	    s++;
+ 	if (*s == '-')
+ 	{
+@@ -1177,24 +1178,20 @@ FcCharSetFreezeBase (FcCharSetFreezer *freezer, FcCharSet *fcs)
      ent->set.num = fcs->num;
      if (fcs->num)
      {
@@ -225,7 +227,7 @@ index cd927d9..f0b87a7 100644
      }
  
      ent->hash = hash;
-@@ -1303,7 +1306,7 @@ FcCharSetFreezerDestroy (FcCharSetFreezer *freezer)
+@@ -1303,7 +1300,7 @@ FcCharSetFreezerDestroy (FcCharSetFreezer *freezer)
  FcBool
  FcCharSetSerializeAlloc (FcSerialize *serialize, const FcCharSet *cs)
  {
@@ -234,7 +236,7 @@ index cd927d9..f0b87a7 100644
      FcChar16	    *numbers;
      int		    i;
  
-@@ -1326,9 +1329,9 @@ FcCharSetSerializeAlloc (FcSerialize *serialize, const FcCharSet *cs)
+@@ -1326,9 +1323,9 @@ FcCharSetSerializeAlloc (FcSerialize *serialize, const FcCharSet *cs)
  
      if (!FcSerializeAlloc (serialize, cs, sizeof (FcCharSet)))
  	return FcFalse;
@@ -246,7 +248,7 @@ index cd927d9..f0b87a7 100644
  	return FcFalse;
      for (i = 0; i < cs->num; i++)
  	if (!FcSerializeAlloc (serialize, FcCharSetLeaf(cs, i),
-@@ -1341,7 +1344,7 @@ FcCharSet *
+@@ -1341,7 +1338,7 @@ FcCharSet *
  FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
  {
      FcCharSet	*cs_serialized;
@@ -255,7 +257,7 @@ index cd927d9..f0b87a7 100644
      FcChar16	*numbers, *numbers_serialized;
      FcCharLeaf	*leaf, *leaf_serialized;
      int		i;
-@@ -1367,16 +1370,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
+@@ -1367,16 +1364,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
  	if (!leaves_serialized)
  	    return NULL;
  
@@ -274,7 +276,7 @@ index cd927d9..f0b87a7 100644
  
  	for (i = 0; i < cs->num; i++)
  	{
-@@ -1385,15 +1386,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
+@@ -1385,15 +1380,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
  	    if (!leaf_serialized)
  		return NULL;
  	    *leaf_serialized = *leaf;
@@ -316,7 +318,7 @@ index e2c6b56..655ac73 100644
  	printf ("\t");
  	printf ("%04x:", numbers[i]);
 diff --git src/fcint.h src/fcint.h
-index c615b66..d46dafe 100644
+index c615b66..f9d1231 100644
 --- src/fcint.h
 +++ src/fcint.h
 @@ -225,11 +225,13 @@ typedef struct _FcPatternElt {
@@ -362,7 +364,7 @@ index c615b66..d46dafe 100644
 +    return leaves[i];
 +}
 +#define FcCharSetNumbers(c)	(FcIsEncodedOffset((c)->numbers) ? \
-+				 FcEncodedOffsetToPtr(c, (c)->leaves, FcChar16) : \
++				 FcEncodedOffsetToPtr(c, (c)->numbers, FcChar16) : \
 +				 (c)->numbers)
  
  #define FCSS_DEFAULT            0 /* default behavior */
@@ -453,3 +455,27 @@ index 2388dcd..47c7f34 100644
      size_t buckets_count = serialize->buckets_count;
      size_t index = hash & (buckets_count-1);
      for (size_t n = 0; n < buckets_count; ++n) {
+diff --git src/fcstr.c src/fcstr.c
+index 3fe518f..5ce65da 100644
+--- src/fcstr.c
++++ src/fcstr.c
+@@ -1467,7 +1467,6 @@ FcStrSetAddFilenamePairWithSalt (FcStrSet *set, const FcChar8 *a, const FcChar8
+ {
+     FcChar8 *new_a = NULL;
+     FcChar8 *new_b = NULL;
+-    FcChar8 *rs = NULL;
+     FcBool  ret;
+ 
+     if (a)
+@@ -1487,10 +1486,7 @@ FcStrSetAddFilenamePairWithSalt (FcStrSet *set, const FcChar8 *a, const FcChar8
+ 	}
+     }
+     /* Override maps with new one if exists */
+-    if (FcStrSetMemberAB (set, new_a, new_b, &rs))
+-    {
+-	FcStrSetDel (set, rs);
+-    }
++    FcStrSetDel (set, new_a);
+     ret = FcStrSetAddTriple (set, new_a, new_b, salt);
+     if (new_a)
+ 	FcStrFree (new_a);
