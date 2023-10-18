@@ -8,8 +8,6 @@ WWW=		https://github.com/CTSRD-CHERI/chericat
 
 LICENSE=	BSD2CLAUSE
 
-MAKEFILE=	makefile
-
 USE_GITHUB=	yes
 GH_PROJECT=	chericat
 GH_ACCOUNT=	CTSRD-CHERI
