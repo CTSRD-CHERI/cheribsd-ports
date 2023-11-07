@@ -1492,6 +1492,7 @@
     SUBDIR += llvm
     SUBDIR += llvm-base
     SUBDIR += llvm-cheri
+    SUBDIR += llvm-cheriot
     SUBDIR += llvm-devel
     SUBDIR += llvm-morello
     SUBDIR += llvm10
