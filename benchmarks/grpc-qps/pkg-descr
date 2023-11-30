@@ -1,0 +1,3 @@
+This port contains the qps_worker and qps_json_driver from the gRPC test suite.
+
+The c++ json configuration files are exported into /usr/local/share/qps.
