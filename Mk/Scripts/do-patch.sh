@@ -59,6 +59,15 @@ apply_one_patch() {
 	shift 3
 	local patch_strip=""
 
+	case $(basename "${file}") in
+		*cheri*)
+			if [ -n "${dp_PATCH_SKIP_CHERI}" ]; then
+				${dp_ECHO_MSG} "===>  PATCH_SKIP_CHERI is defined. Skipping to apply ${msg} ${file}${patch_strip:+ with ${patch_strip}}"
+				return 0
+			fi
+			;;
+	esac
+
 	case ${file} in
 		*:-p[0-9])
 			patch_strip=${file##*:}
