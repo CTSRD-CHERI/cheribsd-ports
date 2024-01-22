@@ -1,0 +1,56 @@
+--- ./GNUmakefile.orig	2024-01-22 14:40:02.022318300 +0000
++++ ./GNUmakefile	2024-01-22 14:41:17.984182200 +0000
+@@ -649,7 +649,7 @@
+ 	# -$(MAKE) -C utils/plot_ui
+ 	-$(MAKE) -C frida_mode
+ ifneq "$(SYS)" "Darwin"
+-  ifeq "$(ARCH)" "aarch64"
++  ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+     ifndef NO_CORESIGHT
+ 	-$(MAKE) -C coresight_mode
+     endif
+@@ -660,7 +660,7 @@
+     endif
+   endif
+ 	-cd qemu_mode && sh ./build_qemu_support.sh
+-  ifeq "$(ARCH)" "aarch64"
++  ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+     ifndef NO_UNICORN_ARM64
+ 	-cd unicorn_mode && unset CFLAGS && sh ./build_unicorn_support.sh
+     endif
+@@ -681,7 +681,7 @@
+ 	# -$(MAKE) -C utils/plot_ui
+ 	-$(MAKE) -C frida_mode
+ ifneq "$(SYS)" "Darwin"
+-ifeq "$(ARCH)" "aarch64"
++ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+   ifndef NO_CORESIGHT
+ 	-$(MAKE) -C coresight_mode
+   endif
+@@ -692,7 +692,7 @@
+ endif
+ endif
+ 	-cd qemu_mode && sh ./build_qemu_support.sh
+-  ifeq "$(ARCH)" "aarch64"
++  ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+     ifndef NO_UNICORN_ARM64
+ 	-cd unicorn_mode && unset CFLAGS && sh ./build_unicorn_support.sh
+     endif
+@@ -705,7 +705,7 @@
+ 	@echo Build Summary:
+ 	@test -e afl-fuzz && echo "[+] afl-fuzz and supporting tools successfully built" || echo "[-] afl-fuzz could not be built, please set CC to a working compiler"
+ ifneq "$(SYS)" "Darwin"
+-ifeq "$(ARCH)" "aarch64"
++ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+   ifndef NO_CORESIGHT
+ 	@test -e afl-cs-proxy && echo "[+] coresight_mode successfully built" || echo "[-] coresight_mode could not be built, it is optional and experimental, see coresight_mode/README.md for what is needed"
+   endif
+@@ -716,7 +716,7 @@
+ endif
+ endif
+ 	@test -e afl-qemu-trace && echo "[+] qemu_mode successfully built" || echo "[-] qemu_mode could not be built, see docs/INSTALL.md for what is needed"
+-  ifeq "$(ARCH)" "aarch64"
++  ifeq ($(filter $(ARCH), "aarch64" "arm64"),)
+     ifndef NO_UNICORN_ARM64
+ 	@test -e unicorn_mode/unicornafl/build_python/libunicornafl.so && echo "[+] unicorn_mode successfully built" || echo "[-] unicorn_mode could not be built, it is optional, see unicorn_mode/README.md for what is needed"
+     endif
