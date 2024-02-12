@@ -33,8 +33,8 @@ include/polkit-1/polkitagent/polkitagentlistener.h
 include/polkit-1/polkitagent/polkitagentsession.h
 include/polkit-1/polkitagent/polkitagenttextlistener.h
 include/polkit-1/polkitagent/polkitagenttypes.h
-lib/girepository-1.0/Polkit-1.0.typelib
-lib/girepository-1.0/PolkitAgent-1.0.typelib
+%%GIR%%lib/girepository-1.0/Polkit-1.0.typelib
+%%GIR%%lib/girepository-1.0/PolkitAgent-1.0.typelib
 lib/libpolkit-agent-1.so
 lib/libpolkit-agent-1.so.0
 lib/libpolkit-agent-1.so.0.0.0
@@ -54,8 +54,8 @@ libdata/pkgconfig/polkit-gobject-1.pc
 share/dbus-1/system-services/org.freedesktop.PolicyKit1.service
 share/gettext/its/polkit.its
 share/gettext/its/polkit.loc
-share/gir-1.0/Polkit-1.0.gir
-share/gir-1.0/PolkitAgent-1.0.gir
+%%GIR%%share/gir-1.0/Polkit-1.0.gir
+%%GIR%%share/gir-1.0/PolkitAgent-1.0.gir
 share/locale/cs/LC_MESSAGES/polkit-1.mo
 share/locale/da/LC_MESSAGES/polkit-1.mo
 share/locale/de/LC_MESSAGES/polkit-1.mo

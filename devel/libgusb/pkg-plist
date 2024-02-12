@@ -13,12 +13,12 @@ include/gusb-1/gusb/gusb-interface.h
 include/gusb-1/gusb/gusb-source.h
 include/gusb-1/gusb/gusb-util.h
 include/gusb-1/gusb/gusb-version.h
-lib/girepository-1.0/GUsb-1.0.typelib
+%%GIR%%lib/girepository-1.0/GUsb-1.0.typelib
 lib/libgusb.so
 lib/libgusb.so.2
 lib/libgusb.so.2.0.10
 libdata/pkgconfig/gusb.pc
-share/gir-1.0/GUsb-1.0.gir
+%%GIR%%share/gir-1.0/GUsb-1.0.gir
 %%DOCS%%share/gtk-doc/html/gusb/faq.html
 %%DOCS%%share/gtk-doc/html/gusb/gusb-GUsbContext.html
 %%DOCS%%share/gtk-doc/html/gusb/gusb-GUsbDevice.html

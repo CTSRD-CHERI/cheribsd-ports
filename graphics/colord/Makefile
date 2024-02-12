@@ -21,7 +21,6 @@ GROUPS=		colord
 
 USES=		gettext gnome libtool localbase meson pathfix pkgconfig sqlite \
 		tar:xz
-USE_GNOME=	glib20 intlhack introspection:build
 
 USE_LDCONFIG=	yes
 MAKE_JOBS_UNSAFE=	yes
@@ -67,6 +66,17 @@ SENSOR_RUN_DEPENDS=		spotread:graphics/argyllcms
 VALA_USES=			vala:build
 
 GNOME_HTML_DIR=		${PREFIX}/share/gtk-doc/html
+
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+USE_GNOME=	glib20 intlhack
+MESON_ARGS+=	-Dintrospection=false
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME=	glib20 intlhack introspection:build
+PLIST_SUB+=	GIR=""
+.endif
 
 post-patch:
 	@${REINPLACE_CMD} -e 's|lib/color\>|db/color|g' \

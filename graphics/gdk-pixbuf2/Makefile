@@ -16,7 +16,6 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 USES=		cpe gettext gnome localbase:ldflags meson pkgconfig \
 		python:build shared-mime-info shebangfix tar:xz trigger
 CPE_VENDOR=	gnome
-USE_GNOME=	glib20 introspection:build libxslt:build
 SHEBANG_FILES=	build-aux/*.py
 USE_LDCONFIG=	yes
 MESON_ARGS=	-Dbuiltin_loaders="none" -Dgtk_doc=false -Dinstalled_tests=false -Dtests=false
@@ -43,5 +42,16 @@ PNG_MESON_ENABLED=	png
 
 TIFF_LIB_DEPENDS=	libtiff.so:graphics/tiff
 TIFF_MESON_ENABLED=	tiff
+
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+USE_GNOME=	glib20 libxslt:build
+MESON_ARGS+=	-Dintrospection=disabled
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME=	glib20 introspection:build libxslt:build
+PLIST_SUB+=	GIR=""
+.endif
 
 .include <bsd.port.mk>

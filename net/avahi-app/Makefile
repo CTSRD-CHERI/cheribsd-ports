@@ -26,7 +26,6 @@ USERS?=		${PORTNAME}
 GROUPS?=	${USERS}
 
 USES+=		alias cpe gettext gmake gnome libtool pathfix pkgconfig
-USE_GNOME+=	glib20 intltool introspection:build
 USE_GNOME_SUBR=	yes
 USE_LDCONFIG=	yes
 GNU_CONFIGURE=	yes
@@ -95,6 +94,15 @@ CONFIGURE_ARGS+=--enable-mono
 CONFIGURE_ARGS+=--disable-mono
 .endif
 CONFIGURE_ARGS+=--disable-stack-protector
+
+.if ${ABI:Mpurecap}
+USE_GNOME+=	glib20 intltool
+CONFIGURE_ARGS+=--disable-introspection
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME+=	glib20 intltool introspection:build
+PLIST_SUB+=	GIR=""
+.endif
 
 post-patch: avahi-post-patch
 

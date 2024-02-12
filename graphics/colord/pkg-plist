@@ -50,8 +50,8 @@ lib/colord-sensors/libcolord_sensor_dtp94.so
 lib/colord-sensors/libcolord_sensor_colorhug.so
 lib/colord-sensors/libcolord_sensor_dummy.so
 lib/colord-sensors/libcolord_sensor_huey.so
-lib/girepository-1.0/Colord-1.0.typelib
-lib/girepository-1.0/Colorhug-1.0.typelib
+%%GIR%%lib/girepository-1.0/Colord-1.0.typelib
+%%GIR%%lib/girepository-1.0/Colorhug-1.0.typelib
 lib/libcolord.so
 lib/libcolord.so.2
 lib/libcolord.so.2.0.5
@@ -167,8 +167,8 @@ share/dbus-1/interfaces/org.freedesktop.ColorManager.xml
 share/dbus-1/services/org.freedesktop.ColorHelper.service
 share/dbus-1/system-services/org.freedesktop.ColorManager.service
 share/dbus-1/system.d/org.freedesktop.ColorManager.conf
-share/gir-1.0/Colord-1.0.gir
-share/gir-1.0/Colorhug-1.0.gir
+%%GIR%%share/gir-1.0/Colord-1.0.gir
+%%GIR%%share/gir-1.0/Colorhug-1.0.gir
 share/locale/as/LC_MESSAGES/colord.mo
 share/locale/bn_IN/LC_MESSAGES/colord.mo
 share/locale/ca/LC_MESSAGES/colord.mo

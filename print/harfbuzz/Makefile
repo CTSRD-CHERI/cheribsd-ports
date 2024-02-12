@@ -17,7 +17,6 @@ LIB_DEPENDS=	libfreetype.so:print/freetype2 \
 USES=		compiler:c++11-lib cpe meson pkgconfig python:build \
 		shebangfix tar:xz
 
-USE_GNOME=	glib20 introspection:build
 USE_LDCONFIG=	yes
 SHEBANG_GLOB=	*.py
 CPE_VENDOR=	harfbuzz_project
@@ -43,13 +42,18 @@ GLIB_MESON_ENABLED=	glib
 GOBJECT_DESC=		Depend on gobject
 GLIB_DESC=		Depend on glib
 
-OPTIONS_EXCLUDE_purecap=	GOBJECT GLIB
-
 .include <bsd.port.options.mk>
 
-.if !${ABI:Mpurecap}
-USES+=			gnome
+.if ${ABI:Mpurecap}
+USE_GNOME=	glib20
+MESON_ARGS+=	-Dintrospection=disabled
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME=	glib20 introspection:build
+PLIST_SUB+=	GIR=""
 .endif
+
+USES+=			gnome
 
 .if ${HARFBUZZ_SLAVE} == no
 MESON_ARGS+=	-Dicu=disabled -Dcairo=disabled

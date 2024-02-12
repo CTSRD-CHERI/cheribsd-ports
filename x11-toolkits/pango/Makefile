@@ -22,7 +22,6 @@ PORTSCOUT=	limitw:1,even
 
 USES=		compiler:c11 cpe gettext gnome localbase meson pkgconfig python:env tar:xz
 USE_LDCONFIG=	yes
-USE_GNOME=	cairo glib20 introspection:build
 
 CPE_VENDOR=	gnome
 
@@ -49,6 +48,17 @@ THAI_MESON_ENABLED=	libthai
 X11_MESON_ENABLED=	xft
 X11_USES=	xorg
 X11_USE=	XORG=x11,xft,xrender
+
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+USE_GNOME=	cairo glib20
+MESON_ARGS+=	-Dintrospection=disabled
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME=	cairo glib20 introspection:build
+PLIST_SUB+=	GIR=""
+.endif
 
 pre-configure:
 # .if !exists() evaluates too early before cairo has a chance to be installed

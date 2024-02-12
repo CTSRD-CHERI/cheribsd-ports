@@ -42,7 +42,7 @@ include/harfbuzz/hb-unicode.h
 include/harfbuzz/hb-version.h
 include/harfbuzz/hb.h
 lib/cmake/harfbuzz/harfbuzz-config.cmake
-%%GOBJECT%%lib/girepository-1.0/HarfBuzz-0.0.typelib
+%%GIR%%lib/girepository-1.0/HarfBuzz-0.0.typelib
 %%GOBJECT%%lib/libharfbuzz-gobject.so
 %%GOBJECT%%lib/libharfbuzz-gobject.so.0
 %%GOBJECT%%lib/libharfbuzz-gobject.so.%%LIBVER%%
@@ -55,7 +55,7 @@ lib/libharfbuzz.so.%%LIBVER%%
 %%GOBJECT%%libdata/pkgconfig/harfbuzz-gobject.pc
 libdata/pkgconfig/harfbuzz-subset.pc
 libdata/pkgconfig/harfbuzz.pc
-%%GOBJECT%%share/gir-1.0/HarfBuzz-0.0.gir
+%%GIR%%share/gir-1.0/HarfBuzz-0.0.gir
 %%DOCS%%share/gtk-doc/html/harfbuzz/HarfBuzz.png
 %%DOCS%%share/gtk-doc/html/harfbuzz/HarfBuzz.svg
 %%DOCS%%share/gtk-doc/html/harfbuzz/a-clustering-example-for-levels-0-and-1.html

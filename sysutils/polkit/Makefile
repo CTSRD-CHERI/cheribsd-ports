@@ -19,7 +19,6 @@ GROUPS=		polkitd
 
 USES=		compiler:c++17-lang cpe gettext gnome libtool localbase meson \
 		pathfix pkgconfig shebangfix
-USE_GNOME=	glib20 intltool introspection:build
 SHEBANG_FILES=	${WRKSRC}/src/polkitbackend/toarray.pl
 USE_LDCONFIG=	yes
 CPE_VENDOR=	polkit_project
@@ -29,7 +28,6 @@ MESON_ARGS=	-Dpam_include=system \
 		-Dexamples=false \
 		-Dsession_tracking=ConsoleKit \
 		-Dtests=false \
-		-Dintrospection=true \
 		-Dlocalstatedir=/var \
 		-Dgtk_doc=false
 
@@ -55,6 +53,17 @@ MANPAGES_USE=		gnome=libxslt:build
 MANPAGES_MESON_TRUE=	man
 
 OPTIONS_SUB=		yes
+
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+USE_GNOME=	glib20 intltool
+MESON_ARGS+=	-Dintrospection=false
+PLIST_SUB+=	GIR="@comment "
+.else
+USE_GNOME=	glib20 intltool introspection:build
+PLIST_SUB+=	GIR=""
+.endif
 
 .include <bsd.port.pre.mk>
 
