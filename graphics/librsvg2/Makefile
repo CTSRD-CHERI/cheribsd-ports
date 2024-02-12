@@ -48,6 +48,15 @@ GNOME_HTML_DIR=	${DOCSDIR}
 
 PLIST_SUB+=	PORTVERSION=${PORTVERSION}
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+CONFIGURE_ARGS= --disable-introspection
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 post-patch:
 	@${REINPLACE_CMD} -e 's|GTK3_REQUIRED=3.[0-9][0-9].[0-9]|GTK3_REQUIRED=9.90.0|g' \
 		${WRKSRC}/configure

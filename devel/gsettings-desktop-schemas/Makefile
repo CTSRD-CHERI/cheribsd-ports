@@ -51,4 +51,12 @@ GLIB_SCHEMAS=	org.gnome.desktop.a11y.applications.gschema.xml \
 
 BINARY_ALIAS=	python3=${PYTHON_CMD}
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 .include <bsd.port.mk>

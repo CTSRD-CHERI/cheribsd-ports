@@ -44,4 +44,13 @@ PNG_MESON_ENABLED=	png
 TIFF_LIB_DEPENDS=	libtiff.so:graphics/tiff
 TIFF_MESON_ENABLED=	tiff
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+introspection_MESON_ARG=	disabled
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 .include <bsd.port.mk>

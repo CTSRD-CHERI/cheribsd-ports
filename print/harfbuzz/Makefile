@@ -43,12 +43,13 @@ GLIB_MESON_ENABLED=	glib
 GOBJECT_DESC=		Depend on gobject
 GLIB_DESC=		Depend on glib
 
-OPTIONS_EXCLUDE_purecap=	GOBJECT GLIB
-
 .include <bsd.port.options.mk>
 
-.if !${ABI:Mpurecap}
-USES+=			gnome
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+introspection_MESON_ARG=	disabled
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
 .endif
 
 .if ${HARFBUZZ_SLAVE} == no

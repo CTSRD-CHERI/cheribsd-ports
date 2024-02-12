@@ -29,4 +29,12 @@ DOCS_MESON_TRUE=	docs
 VAPI_MESON_TRUE=	vapi
 VAPI_USES=		vala:build
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 .include <bsd.port.mk>

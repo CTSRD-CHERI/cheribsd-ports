@@ -50,6 +50,15 @@ X11_MESON_ENABLED=	xft
 X11_USES=	xorg
 X11_USE=	XORG=x11,xft,xrender
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+introspection_MESON_ARG=	disabled
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 pre-configure:
 # .if !exists() evaluates too early before cairo has a chance to be installed
 	@if ! pkg-config --exists cairo-gobject; then \

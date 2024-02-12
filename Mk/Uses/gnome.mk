@@ -395,6 +395,23 @@ RUN_DEPENDS+=	${GNOME_SUBR}:sysutils/gnome_subr
 SUB_LIST+=		GNOME_SUBR=${GNOME_SUBR}
 .  endif
 
+.  if ${ABI:Mpurecap}
+# CheriABI libffi doesn't currently support closures that are used in GObject
+# introspection, therefore disable this. Note that meson_options typically
+# declares the introspection option as a boolean, but in some cases this is a
+# string value. introspection_MESON_ARG provides a mechansim for the port to
+# specify this option.
+introspection_MESON_ARG?=	false
+.  endif
+.  if defined(introspection_MESON_ARG)
+MESON_ARGS+=	-Dintrospection=${introspection_MESON_ARG}
+.    if ${introspection_MESON_ARG} == "false" || ${introspection_MESON_ARG} == "disabled"
+PLIST_SUB+=	GIR="@comment "
+.    else
+PLIST_SUB+=	GIR=""
+.    endif
+.  endif
+
 .endif
 # end of the part
 

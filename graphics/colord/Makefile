@@ -68,6 +68,14 @@ VALA_USES=			vala:build
 
 GNOME_HTML_DIR=		${PREFIX}/share/gtk-doc/html
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+# Purecap libffi does not currently support ffi closures required by
+# gobject-introspection.
+USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
+.endif
+
 post-patch:
 	@${REINPLACE_CMD} -e 's|lib/color\>|db/color|g' \
 		-e 's|/usr/share/color|${PREFIX}/share/color|g' \
