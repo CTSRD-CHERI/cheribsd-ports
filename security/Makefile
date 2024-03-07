@@ -168,8 +168,16 @@
     SUBDIR += fwknop
     SUBDIR += fwlogwatch
     SUBDIR += gcr
-    # SUBDIR += gef
+#
+# security/gef is replaced by security/gef-meta that points at security/gef-cheri on
+# CheriBSD.
+#
+# Do not build security/gef but leave it in CheriBSD ports to prevent possible
+# upstream merge issues.
+#
+#   SUBDIR += gef
     SUBDIR += gef-cheri
+    SUBDIR += gef-meta
     SUBDIR += git-credential-gopass
     SUBDIR += git-credential-oauth
     SUBDIR += git-crypt
