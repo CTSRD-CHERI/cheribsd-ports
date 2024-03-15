@@ -91,6 +91,11 @@ esac
 # version in ${LOCALBASE}/bin to ensure LD_LIBRARY_PATH is correct.
 realtool=${LOCALBASE}/bin/${llvmtool}
 
+cflags=
+if [ "$CHERIBSD_VERSION" -gt 20230804 ]; then
+	cflags="-ftrivial-auto-var-init=zero"
+fi
+
 # CheriBSD: assume that if we're on a CHERI architecture we want either
 # purecap or hybrid binaries.
 arch_cflags=
@@ -131,7 +136,7 @@ esac
 
 case $tool in
 cc|c++|cpp)
-	toolflags=$arch_cflags
+	toolflags=$cflags $arch_cflags
 	;;
 ld|ld.lld)
 	# no flags should be required as ld can see what it's doing from
