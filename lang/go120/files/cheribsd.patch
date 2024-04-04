@@ -1,0 +1,44 @@
+diff --git src/runtime/signal_freebsd_arm64.go src/runtime/signal_freebsd_arm64.go
+index 159e965a7d..4ece6069d9 100644
+--- src/runtime/signal_freebsd_arm64.go
++++ src/runtime/signal_freebsd_arm64.go
+@@ -11,6 +11,9 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++// This is specific to the CheriBSD freebsd64 compat layer
++const _MC_CAP_VALID uint32 = (1 << 31)
++
+ //go:nosplit
+ //go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+@@ -58,9 +61,26 @@ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+ 
+ func (c *sigctxt) set_pc(x uint64)  { c.regs().mc_gpregs.gp_elr = x }
+-func (c *sigctxt) set_sp(x uint64)  { c.regs().mc_gpregs.gp_sp = x }
+-func (c *sigctxt) set_lr(x uint64)  { c.regs().mc_gpregs.gp_lr = x }
+-func (c *sigctxt) set_r28(x uint64) { c.regs().mc_gpregs.gp_x[28] = x }
++func (c *sigctxt) set_sp(x uint64)  {
++	c.regs().mc_gpregs.gp_sp = x
++	c.cheri_set_integer_mcontext()
++}
++func (c *sigctxt) set_lr(x uint64)  {
++	c.regs().mc_gpregs.gp_lr = x
++	c.cheri_set_integer_mcontext()
++}
++func (c *sigctxt) set_r28(x uint64) {
++	c.regs().mc_gpregs.gp_x[28] = x
++	c.cheri_set_integer_mcontext()
++}
+ 
+ func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = x }
++
++func (c *sigctxt) cheri_set_integer_mcontext() {
++	// Clear the _MC_CAP_VALID flag so that mcontext updates the registers
++	// upon sigreturn. Any capabilities will be invalidated on freebsd64,
++	// but this is fine, we are not an hybrid program.
++	flags := &(*ucontext)(c.ctxt).uc_mcontext.mc_flags
++	*flags &= (int32)(^_MC_CAP_VALID)
++}
