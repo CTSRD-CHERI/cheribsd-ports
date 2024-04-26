@@ -1,5 +1,5 @@
 PORTNAME=	llvm
-PORTVERSION=	20240315
+PORTVERSION=	20240426
 CATEGORIES=	devel lang
 MASTER_SITES=	# not applicable
 DISTFILES=	# not applicable
@@ -28,7 +28,7 @@ NO_ARCH=	yes
 
 SUB_FILES=	wrapper.sh
 
-COMMANDS=	cc c++ cpp ld objdump
+COMMANDS=	cc clang c++ clang++ cpp clang-cpp ld objdump
 .if ${FLAVOR:Mbase}
 # Conflicts with devel/llvm in localbase flavor
 COMMANDS+=	ld.lld
