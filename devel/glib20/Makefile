@@ -14,8 +14,6 @@ WWW=		https://www.gtk.org/
 
 LICENSE=	LGPL20
 
-BROKEN_purecap=	various patches in-flight
-
 LIB_DEPENDS=	libffi.so:devel/libffi \
 		libpcre2-8.so:devel/pcre2
 
@@ -34,6 +32,8 @@ MESON_ARGS=	-Db_lundef=false \
 		-Druntime_dir=/var/run \
 		-Dselinux=disabled \
 		-Dxattr=false
+
+CFLAGS_aarch64c+=	-DG_ENABLE_EXPERIMENTAL_ABI_COMPILATION
 BINARY_ALIAS=	python3=${PYTHON_CMD}
 PORTSCOUT=	limitw:1,even
 CPE_VENDOR=	gnome
