@@ -1,0 +1,123 @@
+diff --git src/ip.h src/ip.h
+index e5d4aa8..b4cf58c 100644
+--- src/ip.h
++++ src/ip.h
+@@ -178,16 +178,6 @@ struct ip_timestamp {
+ 
+ #define IP_MSS 576 /* default maximum segment size */
+ 
+-#if GLIB_SIZEOF_VOID_P == 4
+-struct mbuf_ptr {
+-    struct mbuf *mptr;
+-    uint32_t dummy;
+-} SLIRP_PACKED;
+-#else
+-struct mbuf_ptr {
+-    struct mbuf *mptr;
+-} SLIRP_PACKED;
+-#endif
+ struct qlink {
+     void *next, *prev;
+ };
+@@ -196,8 +186,7 @@ struct qlink {
+  * Overlay for ip header used by other protocols (tcp, udp).
+  */
+ struct ipovly {
+-    struct mbuf_ptr ih_mbuf; /* backpointer to mbuf */
+-    uint8_t ih_x1; /* (unused) */
++    uint8_t ih_unused[9];
+     uint8_t ih_pr; /* protocol */
+     uint16_t ih_len; /* protocol length */
+     struct in_addr ih_src; /* source internet address */
+diff --git src/libslirp.h src/libslirp.h
+index 77396f0..7d9e277 100644
+--- src/libslirp.h
++++ src/libslirp.h
+@@ -11,6 +11,7 @@
+ #include <ws2tcpip.h>
+ #include <in6addr.h>
+ #else
++#include <sys/socket.h>
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+ #endif
+diff --git src/tcp_input.c src/tcp_input.c
+index ecca972..4ea2852 100644
+--- src/tcp_input.c
++++ src/tcp_input.c
+@@ -281,7 +281,7 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
+          */
+         tlen = ip->ip_len;
+         tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+-        memset(&ti->ih_mbuf, 0, sizeof(struct mbuf_ptr));
++        ti->ti_mbuf = NULL;
+         memset(&ti->ti, 0, sizeof(ti->ti));
+         ti->ti_x0 = 0;
+         ti->ti_src = save_ip.ip_src;
+@@ -308,7 +308,7 @@ void tcp_input(struct mbuf *m, int iphlen, struct socket *inso,
+ 
+         tlen = ip6->ip_pl;
+         tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+-        memset(&ti->ih_mbuf, 0, sizeof(struct mbuf_ptr));
++        ti->ti_mbuf = NULL;
+         memset(&ti->ti, 0, sizeof(ti->ti));
+         ti->ti_x0 = 0;
+         ti->ti_src6 = save_ip6.ip_src;
+diff --git src/tcpip.h src/tcpip.h
+index a0fb228..278b1d8 100644
+--- src/tcpip.h
++++ src/tcpip.h
+@@ -38,7 +38,7 @@
+  * Tcp+ip header, after ip options removed.
+  */
+ struct tcpiphdr {
+-    struct mbuf_ptr ih_mbuf; /* backpointer to mbuf */
++    struct mbuf *ti_mbuf; /* backpointer to mbuf */
+     union {
+         struct {
+             struct in_addr ih_src; /* source internet address */
+@@ -57,7 +57,6 @@ struct tcpiphdr {
+     uint16_t ti_len; /* protocol length */
+     struct tcphdr ti_t; /* tcp header */
+ };
+-#define ti_mbuf ih_mbuf.mptr
+ #define ti_pr ti.ti_i4.ih_pr
+ #define ti_src ti.ti_i4.ih_src
+ #define ti_dst ti.ti_i4.ih_dst
+diff --git src/udp.c src/udp.c
+index 1693ad3..f9cf089 100644
+--- src/udp.c
++++ src/udp.c
+@@ -127,8 +127,7 @@ void udp_input(register struct mbuf *m, int iphlen)
+      * Checksum extended UDP header and data.
+      */
+     if (uh->uh_sum) {
+-        memset(&((struct ipovly *)ip)->ih_mbuf, 0, sizeof(struct mbuf_ptr));
+-        ((struct ipovly *)ip)->ih_x1 = 0;
++        memset(&((struct ipovly *)ip)->ih_unused, 0, sizeof(((struct ipovly *)ip)->ih_unused));
+         ((struct ipovly *)ip)->ih_len = uh->uh_ulen;
+         if (cksum(m, len + sizeof(struct ip))) {
+             goto bad;
+@@ -275,8 +274,7 @@ int udp_output(struct socket *so, struct mbuf *m, struct sockaddr_in *saddr,
+      * and addresses and length put into network format.
+      */
+     ui = mtod(m, struct udpiphdr *);
+-    memset(&ui->ui_i.ih_mbuf, 0, sizeof(struct mbuf_ptr));
+-    ui->ui_x1 = 0;
++    memset(&ui->ui_i.ih_unused, 0, sizeof(ui->ui_i.ih_unused));
+     ui->ui_pr = IPPROTO_UDP;
+     ui->ui_len = htons(m->m_len - sizeof(struct ip));
+     /* XXXXX Check for from-one-location sockets, or from-any-location sockets
+diff --git src/udp.h src/udp.h
+index 47f4ed3..469895c 100644
+--- src/udp.h
++++ src/udp.h
+@@ -57,8 +57,6 @@ struct udpiphdr {
+     struct ipovly ui_i; /* overlaid ip structure */
+     struct udphdr ui_u; /* udp header */
+ };
+-#define ui_mbuf ui_i.ih_mbuf.mptr
+-#define ui_x1 ui_i.ih_x1
+ #define ui_pr ui_i.ih_pr
+ #define ui_len ui_i.ih_len
+ #define ui_src ui_i.ih_src
