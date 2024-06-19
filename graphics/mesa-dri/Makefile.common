@@ -52,12 +52,6 @@ LIB_DEPENDS+=	libelf.so:devel/libelf
 USES+=		compiler:c++11-lib bison meson pathfix pkgconfig \
 		python:build shebangfix tar:xz
 
-.if ${/usr/bin/ld:L:tA} != /usr/bin/ld.lld
-# --build-id isn't supported by old GNU ld.bfd in base
-# Also ld.bfd have problems that seems related to --as-needed
-LDFLAGS+=		-B${LOCALBASE}/bin
-.endif
-
 # only have one port to check with portscout.
 .if ${PORTNAME} != mesa-dri
 PORTSCOUT=	ignore:1
@@ -84,8 +78,6 @@ PKGDEINSTALL=	${.CURDIR}/pkg-deinstall
 BINARY_ALIAS+=	python3=${PYTHON_CMD}
 
 .if !${ABI:Mpurecap}
-USE_BINUTILS=		yes
-
 LLVM_DEFAULT=	15
 BUILD_DEPENDS+=	llvm-config${LLVM_DEFAULT}:devel/llvm${LLVM_DEFAULT}
 CONFIGURE_ENV+=	LLVM_CONFIG=llvm-config${LLVM_DEFAULT}
