@@ -22,7 +22,15 @@ INSTALL_TARGET=	install-strip
 
 OPTIONS_DEFINE=	DOCS
 
+.include <bsd.port.pre.mk>
+
+.if ${ARCH} == "aarch64c"
+GETTEXT_LOCALBASE=	${LOCALBASE64}
+.else
+GETTEXT_LOCALBASE=	${LOCALBASE}
+.endif
+
 pre-configure:
-	@${CP} ${LOCALBASE}/share/gettext/config.rpath ${WRKSRC}
+	@${CP} ${GETTEXT_LOCALBASE}/share/gettext/config.rpath ${WRKSRC}
 
 .include <bsd.port.mk>

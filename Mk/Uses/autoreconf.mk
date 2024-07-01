@@ -67,6 +67,8 @@
 #
 # MAINTAINER:	ports@FreeBSD.org
 
+AUTORECONF_LOCALBASE=	${LOCALBASE64}
+
 .if !defined(_INCLUDE_USES_AUTORECONF_MK)
 _INCLUDE_USES_AUTORECONF_MK=	yes
 _USES_POST+=	autoreconf
@@ -74,7 +76,7 @@ _USES_POST+=	autoreconf
 .if defined(AUTORECONF_CMD)
 AUTORECONF=	${AUTORECONF_CMD}
 .else
-AUTORECONF?=	${LOCALBASE}/bin/autoreconf${_AUTORECONF}
+AUTORECONF?=	${AUTORECONF_LOCALBASE}/bin/autoreconf${_AUTORECONF}
 .endif
 AUTORECONF_WRKSRC?=	${WRKSRC}
 
@@ -108,7 +110,7 @@ BUILD_DEPENDS+=	automake>=1.16.5:devel/automake
 .  endif
 
 .  if defined(libtool_ARGS) && empty(libtool_ARGS:Mbuild)
-BUILD_DEPENDS+=	libtoolize:devel/libtool
+BUILD_DEPENDS+=	${AUTORECONF_LOCALBASE}/bin/libtoolize:devel/libtool:usepkg64
 .  endif
 
 # In case autoconf-switch wrapper scripts are used during build.
@@ -132,11 +134,11 @@ do-autoreconf:
 		if test -f configure.ac; then configure=configure.ac; \
 		else configure=configure.in; fi && \
 		if ${GREP} -q '^GTK_DOC_CHECK' $${configure}; \
-		then if ! ${LOCALBASE}/bin/gtkdocize --copy; then \
+		then if ! ${AUTORECONF_LOCALBASE}/bin/gtkdocize --copy; then \
 		${ECHO_MSG} '===>  Mk/Uses/autoreconf.mk: Error running gtkdocize'; \
 		${FALSE}; fi; fi && \
 		if ${EGREP} -q '^(AC|IT)_PROG_INTLTOOL' $${configure}; \
-		then if ! ${LOCALBASE}/bin/intltoolize -f -c; then \
+		then if ! ${AUTORECONF_LOCALBASE}/bin/intltoolize -f -c; then \
 		${ECHO_MSG} '===>  Mk/Uses/autoreconf.mk: Error running intltoolize'; \
 		${FALSE}; fi; fi)
 .    endif
