@@ -1,6 +1,6 @@
---- mixedlist.c_old	2021-01-03 16:01:52.851092000 +0300
-+++ mixedlist.c	2021-01-03 16:06:04.266150000 +0300
-@@ -652,12 +652,12 @@
+--- mixedlist.c.orig	2016-07-08 15:49:08.000000000 +0100
++++ mixedlist.c	2023-04-03 16:35:38.479966000 +0100
+@@ -652,23 +652,23 @@
  						break;
  					case DLGK_ITEM_PREV:
  						i = choice - 1;
@@ -15,3 +15,16 @@
  						break;
  					case DLGK_ITEM_NEXT:
  						i = choice + 1;
++						if (scrollamt + choice >= item_no - 1)
++							continue;
+ 						if (items[scrollamt + i].type == ITEM_SEPARATOR) {
+ 							if (scrollamt + i + 1 < item_no)
+ 								i++;
+ 							else
+ 								i--;
+ 						}
+-						if (scrollamt + choice >= item_no - 1)
+-							continue;
+ 						break;
+ 					default:
+ 						found = false;
