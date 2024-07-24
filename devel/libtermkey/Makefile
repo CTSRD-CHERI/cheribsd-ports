@@ -14,7 +14,7 @@ USES=		gmake libtool:build ncurses pathfix pkgconfig
 PATHFIX_MAKEFILEIN=	Makefile
 LIB_DEPENDS=	libunibilium.so:devel/unibilium
 USE_LDCONFIG=	yes
-MAKE_ARGS=	MANDIR=${MANPREFIX}/man
+MAKE_ARGS=	MANDIR=${MANPREFIX}/man PREFIX=${PREFIX}
 
 post-install:
 	#${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libtermkey.so.1.14.1
