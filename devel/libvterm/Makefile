@@ -17,6 +17,8 @@ USE_LDCONFIG=	yes
 USE_PERL5=	build test
 TEST_TARGET=	test
 
+MAKE_ARGS=	PREFIX=${PREFIX}
+
 post-install:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/unterm
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/vterm-ctrl
