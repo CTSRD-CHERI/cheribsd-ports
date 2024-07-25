@@ -1,5 +1,5 @@
 PORTNAME=	cheri-vm-support
-PORTVERSION=	20231201
+PORTVERSION=	20240725
 PORTREVISION=	0
 CATEGORIES=	sysutils
 
@@ -12,6 +12,7 @@ USES=		metaport
 ONLY_FOR_ARCHS=		aarch64c
 ONLY_FOR_ARCHS_REASON=	assumes arm64 bhyve and no need for non-purecap
 
+LIB_DEPENDS=	libslirp.so:net/libslirp
 RUN_DEPENDS=	${LOCALBASE}/share/u-boot/u-boot-bhyve-arm64/u-boot.bin:sysutils/u-boot-bhyve-arm64
 
 .include <bsd.port.mk>
