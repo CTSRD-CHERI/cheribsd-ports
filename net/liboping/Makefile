@@ -1,6 +1,6 @@
 PORTNAME=	liboping
 PORTVERSION=	1.8.0
-PORTREVISION=	2
+PORTREVISION=	3
 CATEGORIES=	net
 MASTER_SITES=	https://noping.cc/files/
 
