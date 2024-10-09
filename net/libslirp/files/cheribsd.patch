@@ -64,7 +64,7 @@ index ecca972..4ea2852 100644
          ti->ti_x0 = 0;
          ti->ti_src6 = save_ip6.ip_src;
 diff --git src/tcpip.h src/tcpip.h
-index a0fb228..278b1d8 100644
+index a0fb228..553344f 100644
 --- src/tcpip.h
 +++ src/tcpip.h
 @@ -38,7 +38,7 @@
@@ -76,11 +76,13 @@ index a0fb228..278b1d8 100644
      union {
          struct {
              struct in_addr ih_src; /* source internet address */
-@@ -57,7 +57,6 @@ struct tcpiphdr {
+@@ -56,8 +56,7 @@ struct tcpiphdr {
+     uint16_t ti_x0;
      uint16_t ti_len; /* protocol length */
      struct tcphdr ti_t; /* tcp header */
- };
+-};
 -#define ti_mbuf ih_mbuf.mptr
++} SLIRP_PACKED;
  #define ti_pr ti.ti_i4.ih_pr
  #define ti_src ti.ti_i4.ih_src
  #define ti_dst ti.ti_i4.ih_dst
