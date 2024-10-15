@@ -3,7 +3,7 @@ IGNORE=		is replaced by devel/gdb-meta on CheriBSD
 
 PORTNAME=	gdb
 DISTVERSION=	14.1
-PORTREVISION=	1
+PORTREVISION=	2
 CATEGORIES=	devel
 MASTER_SITES=	GNU
 
@@ -119,7 +119,7 @@ USE_GITHUB=	nodefault
 
 GH_ACCOUNT+=	bsdjhb:libcxx
 GH_PROJECT+=	libcxx-gdbpy:libcxx
-GH_TAGNAME+=	03d0d9b:libcxx
+GH_TAGNAME+=	4bb8585:libcxx
 
 .ifndef SLAVE_PORT
 # Workaround USE_GITHUB preventing the default DISTFILES
