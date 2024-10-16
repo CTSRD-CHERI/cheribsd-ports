@@ -1,0 +1,1425 @@
+diff --git README-morello.md README-morello.md
+new file mode 100644
+index 00000000..4ea5f5d4
+--- /dev/null
++++ README-morello.md
+@@ -0,0 +1,176 @@
++# Background
++
++This software is an experimental Morello port of nginx v1.22.0.
++
++## Build instructions
++
++nginx is build with GNU make (gmake), first install this build dependency
++as follows:
++
++`$ sudo pkg64 install gmake`
++
++Once installed nginx can be built as follows
++(see `auto/configure --help` for a complete list of options):
++ 
++```
++$ auto/configure
++	--with-cc-opt='-Wno-cheri-provenance'
++	--without-http_geo_module
++	--with-http_ssl_module
++	--with-pcre
++	--with-compat
++$ gmake
++$ sudo gmake install
++```
++
++## Run instructions
++
++Once installed nginx can be started by specifying a configuration file as:
++ 
++`sudo /usr/local/sbin/nginx -c <conf>`
++
++To stop the server:
++
++`sudo /usr/local/nginx/sbin/nginx -s stop`
++
++Further details ons starting and stopping nginx and writting a configuration
++file can be found,
++[Starting, Stopping, and Restarting NGINX](https://www.nginx.com/resources/wiki/start/topics/tutorials/commandline/) and
++[Creating NGINX Plus and NGINX Configuration Files](https://docs.nginx.com/nginx/admin-guide/basic-functionality/managing-configuration-files/).
++
++## Library compartmentalization
++
++When using Library compartmentalisation nginx must be build with the 
++following flags: `-Xclang -morello-bounded-memargs=caller-only`.
++
++Following the instructions given by in `man c18n` the runtime linker can either
++be changed to support library compartmentalisation when running configure:
++
++`$ auto/configure --with-ld-opt="-Wl,--dynamic-linker=/libexec/ld-elf-c18n.so.1"` 
++
++or can be changed after the nginx binary has been created using patchelf:
++
++```
++$ sudo patchelf --set-interpreter /libexec/ld-elf-c18n.so.1  /usr/local/sbin/nginx
++```
++
++The change of runtime linker can be verified with either readelf or patchelf
++as below:
++
++```
++$ readelf -l /usr/local/nginx/sbin/nginx
++
++Elf file type is DYN (Shared object file)
++Entry point 0x6ae01
++There are 11 program headers, starting at offset 64
++
++Program Headers:
++  Type           Offset             VirtAddr           PhysAddr
++                 FileSiz            MemSiz              Flg    Align
++  PHDR           0x0000000000000040 0x0000000000000040 0x0000000000000040
++                 0x0000000000000268 0x0000000000000268  R      0x8
++  INTERP         0x0000000000000400 0x0000000000000400 0x0000000000000400
++                 0x0000000000000015 0x0000000000000015  R      0x1
++      [Requesting program interpreter: /libexec/ld-elf.so.1]
++...
++
++$ patchelf --print-interpreter /usr/local/sbin/nginx
++/libexec/ld-elf-c18n.so.1
++```
++
++To start nginx the modifed runtime linker must be able to locate the following
++library: `libpcre.so.1`. This can be achieved by specifying the environmental
++variable `LD_C18N_LIBRARY_PATH` as follows:
++
++`$ sudo LD_C18N_LIBRARY_PATH=/usr/local/lib /usr/local/nginx/sbin/nginx -c ...`
++
++nginx should then start running with shared libraries within seperate
++compartmentments (manged and enforced by the updated runtime linker).
++
++## Testing
++
++### Unit testing
++
++Unit testing has been performed using a corpus of Perl scripts
++[nginx-tests](http://hg.nginx.org/nginx-tests). The core HTTP function can be
++tested as (this require installation of Perl to provide the `prove` command
++line utility):
++
++```
++TEST_NGINX_BINARY=/usr/local/nginx/sbin/nginx prove http*
++http_absolute_redirect.t .... ok
++http_disable_symlinks.t ..... skipped: no disable_symlinks
++http_error_page.t ........... ok
++http_expect_100_continue.t .. ok
++http_header_buffers.t ....... ok
++http_headers_multi.t ........ ok
++http_host.t ................. ok
++http_include.t .............. ok
++http_keepalive.t ............ ok
++http_keepalive_shutdown.t ... ok
++http_listen.t ............... ok
++http_listen_wildcard.t ...... skipped: listen on wildcard address
++http_location.t ............. ok
++http_location_auto.t ........ ok
++http_location_win32.t ....... skipped: not win32
++http_method.t ............... ok
++http_resolver.t ............. ok
++http_resolver_aaaa.t ........ ok
++http_resolver_cleanup.t ..... ok
++http_resolver_cname.t ....... ok
++http_resolver_ipv4.t ........ skipped: no resolver ipv4
++http_server_name.t .......... ok
++http_try_files.t ............ ok
++http_uri.t .................. ok
++http_variables.t ............ ok
++All tests successful.
++Files=25, Tests=402, 67 wallclock secs ( 0.20 usr  0.05 sys +  4.80 cusr  1.07 csys =  6.11 CPU)
++Result: PASS
++```
++
++NOTE: That the `http_header_buffers.t` script requires increasing the
++connection pool size to 224.
++
++To run the unit tests with the runtime linker for library compartmentalisation
++include the `LD_C18N_LIBRARY_PATH` environmental variable:
++
++`LD_C18N_LIBRARY_PATH=/usr/local/lib TEST_NGINX_BINARY=/usr/local/nginx/sbin/nginx prove http*`
++
++### Performance testing
++
++Performance testing is performed using the `wrk` benchmark, as described
++in [Testing the Performance of NGINX and NGINX Plus Web Servers](https://www.nginx.com/blog/testing-the-performance-of-nginx-and-nginx-plus-web-servers/).
++
++`./wrk -t 1 -c 50 -d 15s --latency https://192.168.2.2/1kb.bin`
++
++## Notes and Limitations
++
++As which many configure scripts, `-Werror` is enabled. This results in many
++ambiguous provenance warnings which (in theses cases) bening being promoted
++to errors. As in this case the warnings are benign instead of making
++disruptive and disruptive changes to the code the configure should be
++passed the `--with-cc-opt='-Wno-cheri-provenenace` flags.
++
++The `http_geo_module` performs a cast of a pointer difference to a pointer.
++This results in a capability misuse as the resulting pointer can't be
++dereferenced. 
++
++Adaptations to nginx to the memory-safe CheriABI have been driven by:
++compiler warnings and errors, and dynamic testing. Where the compiler
++emits a warning or error we are able to rigorously review this and
++correct. However, some issues only manifest dynamically (at runtime),
++such as invalidation of capabilities by pointer arithmetic,
++non-blessed memory copies, or insufficient pointer alignment.
++Enhancements such as CHERI UBsan have modestly improved the ability to
++identify problems previously only found during dynamic testing. However,
++ we are still greatly reliant on dynamic testing. This testing is
++constrained by both the completeness of the test suites (which in some
++cases provide poor coverage) and the time available within the project
++to perform testing. Whilst it is know that errors remain outside the
++core http module we are not able to estimate what problems might
++remain beyond those resolved in the scope of the project.
++
++## Acknowledgement
++
++This work has been undertaken within DSTL contract
++ACC6036483: CHERI-based compartmentalisation for web services on Morello.
+diff --git auto/types/sizeof auto/types/sizeof
+index 480d8cfa..5ee68952 100644
+--- auto/types/sizeof
++++ auto/types/sizeof
+@@ -56,6 +56,11 @@ case $ngx_size in
+         ngx_max_len='(sizeof("-9223372036854775808") - 1)'
+     ;;
+ 
++    16)
++        ngx_max_value=9223372036854775807LL
++        ngx_max_len='(sizeof("-9223372036854775808") - 1)'
++    ;;
++
+     *)
+         echo
+         echo "$0: error: can not detect $ngx_type size"
+diff --git conf/nginx.conf conf/nginx.conf
+index 29bc085f..0c867852 100644
+--- conf/nginx.conf
++++ conf/nginx.conf
+@@ -32,6 +32,9 @@ http {
+ 
+     #gzip  on;
+ 
++    types_hash_bucket_size 128;
++    variables_hash_bucket_size 128;
++
+     server {
+         listen       80;
+         server_name  localhost;
+diff --git src/core/ngx_array.c src/core/ngx_array.c
+index 4ea226f0..dae4b869 100644
+--- src/core/ngx_array.c
++++ src/core/ngx_array.c
+@@ -59,6 +59,18 @@ ngx_array_push(ngx_array_t *a)
+ 
+         p = a->pool;
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++	/* allocate a new array */
++
++	new = ngx_palloc(p, 2 * size);
++	if (new == NULL) {
++	return NULL;
++	}
++
++	ngx_memcpy(new, a->elts, size);
++	a->elts = new;
++	a->nalloc *= 2;
++#else
+         if ((u_char *) a->elts + size == p->d.last
+             && p->d.last + a->size <= p->d.end)
+         {
+@@ -82,6 +94,7 @@ ngx_array_push(ngx_array_t *a)
+             a->elts = new;
+             a->nalloc *= 2;
+         }
++#endif
+     }
+ 
+     elt = (u_char *) a->elts + a->size * a->nelts;
+diff --git src/core/ngx_config.h src/core/ngx_config.h
+index 1861be60..dab593c2 100644
+--- src/core/ngx_config.h
++++ src/core/ngx_config.h
+@@ -43,6 +43,10 @@
+ 
+ #endif
+ 
++#ifndef __has_builtin
++#define __has_builtin(x) 0
++#endif
++
+ 
+ #ifndef NGX_HAVE_SO_SNDLOWAT
+ #define NGX_HAVE_SO_SNDLOWAT     1
+@@ -79,6 +83,12 @@ typedef intptr_t        ngx_int_t;
+ typedef uintptr_t       ngx_uint_t;
+ typedef intptr_t        ngx_flag_t;
+ 
++#ifdef _PTRADDR_T_DECLARED
++typedef ptraddr_t	ngx_ptraddr_t;
++#else
++typedef uintptr_t	ngx_ptraddr_t;
++#endif
++
+ 
+ #define NGX_INT32_LEN   (sizeof("-2147483648") - 1)
+ #define NGX_INT64_LEN   (sizeof("-9223372036854775808") - 1)
+@@ -97,9 +107,14 @@ typedef intptr_t        ngx_flag_t;
+ #define NGX_ALIGNMENT   sizeof(unsigned long)    /* platform word */
+ #endif
+ 
++#if __has_builtin(__builtin_align_up)
++#define ngx_align(d, a)     __builtin_align_up(d, a)
++#define ngx_align_ptr(p, a) __builtin_align_up(p, a)
++#else
+ #define ngx_align(d, a)     (((d) + (a - 1)) & ~(a - 1))
+ #define ngx_align_ptr(p, a)                                                   \
+     (u_char *) (((uintptr_t) (p) + ((uintptr_t) a - 1)) & ~((uintptr_t) a - 1))
++#endif
+ 
+ 
+ #define ngx_abort       abort
+@@ -141,5 +156,12 @@ typedef intptr_t        ngx_flag_t;
+ 
+ #endif
+ 
++/* XXXAR: For the low pointer bits macros */
++#if __has_include(<cheri/cheric.h>)
++#include <cheri/cheric.h>
++#else
++#include <cheri.h>
++#endif
++
+ 
+ #endif /* _NGX_CONFIG_H_INCLUDED_ */
+diff --git src/core/ngx_core.h src/core/ngx_core.h
+index 7ecdca0c..2b753712 100644
+--- src/core/ngx_core.h
++++ src/core/ngx_core.h
+@@ -8,7 +8,7 @@
+ #ifndef _NGX_CORE_H_INCLUDED_
+ #define _NGX_CORE_H_INCLUDED_
+ 
+-
++#include <sys/cdefs.h>
+ #include <ngx_config.h>
+ 
+ 
+@@ -42,6 +42,29 @@ typedef void (*ngx_connection_handler_pt)(ngx_connection_t *c);
+ #define  NGX_DECLINED   -5
+ #define  NGX_ABORT      -6
+ 
++#ifdef WITH_SUBOBJECT_AGGRESSIVE
++#ifndef WITH_SUBOBJECT_SAFE
++#define WITH_SUBOBJECT_SAFE
++#endif
++#endif
++
++#ifdef WITH_SUBOBJECT_SAFE
++#define _ngx_safe_no_subobject_bounds __no_subobject_bounds
++#define _ngx_safe_container_bounds __subobject_use_container_bounds
++#else
++#define _ngx_safe_no_subobject_bounds
++#define _ngx_safe_container_bounds
++#endif /* WITH_SUBOBJECT_SAFE */
++
++#ifdef WITH_SUBOBJECT_AGGRESSIVE
++#define _ngx_aggressive_no_subobject_bounds __no_subobject_bounds
++#define _ngx_aggressive_unbounded_addressof __unbounded_addressof
++#define _ngx_aggressive_bounded_addressof __bounded_addressof
++#else
++#define _ngx_aggressive_no_subobject_bounds
++#define _ngx_aggressive_unbounded_addressof(x) (&x)
++#define _ngx_aggressive_bounded_addressof(x, sz) (&x)
++#endif /* WITH_SUBOBJECT_AGGRESSIVE */
+ 
+ #include <ngx_errno.h>
+ #include <ngx_atomic.h>
+diff --git src/core/ngx_crc32.c src/core/ngx_crc32.c
+index a5b4017b..ff66ffdf 100644
+--- src/core/ngx_crc32.c
++++ src/core/ngx_crc32.c
+@@ -107,9 +107,7 @@ ngx_crc32_table_init(void)
+ {
+     void  *p;
+ 
+-    if (((uintptr_t) ngx_crc32_table_short
+-          & ~((uintptr_t) ngx_cacheline_size - 1))
+-        == (uintptr_t) ngx_crc32_table_short)
++    if (__builtin_is_aligned(ngx_crc32_table_short, ngx_cacheline_size))
+     {
+         return NGX_OK;
+     }
+diff --git src/core/ngx_hash.c src/core/ngx_hash.c
+index 8215c271..ce27c4d9 100644
+--- src/core/ngx_hash.c
++++ src/core/ngx_hash.c
+@@ -79,7 +79,8 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
+     ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0, "key:\"%ui\"", key);
+ #endif
+ 
+-    value = ngx_hash_find(&hwc->hash, key, &name[n], len - n);
++    value = ngx_hash_find(&hwc->hash, key,
++        _ngx_aggressive_unbounded_addressof(name[n]), len - n);
+ 
+ #if 0
+     ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0, "value:\"%p\"", value);
+@@ -97,23 +98,21 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
+          *     11 - value is pointer to wildcard hash allowing
+          *          "*.example.com" only.
+          */
+-
+-        if ((uintptr_t) value & 2) {
++        if (cheri_get_low_ptr_bits((uintptr_t) value, 2)) {
+ 
+             if (n == 0) {
+ 
+                 /* "example.com" */
+ 
+-                if ((uintptr_t) value & 1) {
++                if (cheri_get_low_ptr_bits((uintptr_t) value, 1)) {
+                     return NULL;
+                 }
+ 
+-                hwc = (ngx_hash_wildcard_t *)
+-                                          ((uintptr_t) value & (uintptr_t) ~3);
++                hwc = (ngx_hash_wildcard_t *)cheri_clear_low_ptr_bits((uintptr_t)value, 3);
+                 return hwc->value;
+             }
+ 
+-            hwc = (ngx_hash_wildcard_t *) ((uintptr_t) value & (uintptr_t) ~3);
++            hwc = (ngx_hash_wildcard_t *) cheri_clear_low_ptr_bits((uintptr_t)value, 3);
+ 
+             value = ngx_hash_find_wc_head(hwc, name, n - 1);
+ 
+@@ -124,7 +123,7 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
+             return hwc->value;
+         }
+ 
+-        if ((uintptr_t) value & 1) {
++        if (cheri_get_low_ptr_bits((uintptr_t) value, 1)) {
+ 
+             if (n == 0) {
+ 
+@@ -133,7 +132,7 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
+                 return NULL;
+             }
+ 
+-            return (void *) ((uintptr_t) value & (uintptr_t) ~3);
++            return (void *) cheri_clear_low_ptr_bits((uintptr_t)value, 3);
+         }
+ 
+         return value;
+@@ -185,13 +184,14 @@ ngx_hash_find_wc_tail(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
+          *     11 - value is pointer to wildcard hash allowing "example.*".
+          */
+ 
+-        if ((uintptr_t) value & 2) {
++        if (cheri_get_low_ptr_bits((uintptr_t) value, 2)) {
+ 
+             i++;
+ 
+-            hwc = (ngx_hash_wildcard_t *) ((uintptr_t) value & (uintptr_t) ~3);
++            hwc = (ngx_hash_wildcard_t *) cheri_clear_low_ptr_bits((uintptr_t)value, 3);
+ 
+-            value = ngx_hash_find_wc_tail(hwc, &name[i], len - i);
++            value = ngx_hash_find_wc_tail(hwc,
++                _ngx_aggressive_bounded_addressof(name[i], len - i), len - i);
+ 
+             if (value) {
+                 return value;
+@@ -857,7 +857,10 @@ wildcard:
+ 
+     /* wildcard hash */
+ 
+-    k = ngx_hash_strlow(&key->data[skip], &key->data[skip], last - skip);
++    k = ngx_hash_strlow(
++        _ngx_aggressive_bounded_addressof(key->data[skip], last - skip),
++        _ngx_aggressive_bounded_addressof(key->data[skip], last - skip),
++        last - skip);
+ 
+     k %= ha->hsize;
+ 
+diff --git src/core/ngx_inet.c src/core/ngx_inet.c
+index 4228504a..7e7e3b66 100644
+--- src/core/ngx_inet.c
++++ src/core/ngx_inet.c
+@@ -224,10 +224,11 @@ ngx_sock_ntop(struct sockaddr *sa, socklen_t socklen, u_char *text, size_t len,
+             text[n++] = '[';
+         }
+ 
+-        n = ngx_inet6_ntop(sin6->sin6_addr.s6_addr, &text[n], len);
++        n = ngx_inet6_ntop(sin6->sin6_addr.s6_addr,
++            _ngx_aggressive_unbounded_addressof(text[n]), len);
+ 
+         if (port) {
+-            n = ngx_sprintf(&text[1 + n], "]:%d",
++            n = ngx_sprintf(_ngx_aggressive_unbounded_addressof(text[1 + n]), "]:%d",
+                             ntohs(sin6->sin6_port)) - text;
+         }
+ 
+diff --git src/core/ngx_palloc.c src/core/ngx_palloc.c
+index d3044ac9..4b9578f3 100644
+--- src/core/ngx_palloc.c
++++ src/core/ngx_palloc.c
+@@ -20,6 +20,12 @@ ngx_create_pool(size_t size, ngx_log_t *log)
+ {
+     ngx_pool_t  *p;
+ 
++    if (size < sizeof(ngx_pool_t))
++        size = sizeof(ngx_pool_t);
++#ifdef __CHERI_PURE_CAPABILITY__
++    size = __builtin_cheri_round_representable_length(size);
++#endif
++
+     p = ngx_memalign(NGX_POOL_ALIGNMENT, size, log);
+     if (p == NULL) {
+         return NULL;
+@@ -160,9 +166,15 @@ ngx_palloc_small(ngx_pool_t *pool, size_t size, ngx_uint_t align)
+             m = ngx_align_ptr(m, NGX_ALIGNMENT);
+         }
+ 
+-        if ((size_t) (p->d.end - m) >= size) {
++        // Alignment can overflow buffer, need to use a signed type
++        if ((ssize_t) (p->d.end - m) >= (ssize_t) size) {
+             p->d.last = m + size;
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++            // This is safe so long as NGX_MAX_ALLOC_FROM_POOL is
++            // representable.  By default it's 4095 so safe.
++            m = cheri_setboundsexact(m, size);
++#endif
+             return m;
+         }
+ 
+@@ -206,6 +218,9 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
+ 
+     p->d.next = new;
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++    m = cheri_setboundsexact(m, size);
++#endif
+     return m;
+ }
+ 
+diff --git src/core/ngx_palloc.h src/core/ngx_palloc.h
+index 376e0128..e9403076 100644
+--- src/core/ngx_palloc.h
++++ src/core/ngx_palloc.h
+@@ -76,10 +76,10 @@ ngx_pool_t *ngx_create_pool(size_t size, ngx_log_t *log);
+ void ngx_destroy_pool(ngx_pool_t *pool);
+ void ngx_reset_pool(ngx_pool_t *pool);
+ 
+-void *ngx_palloc(ngx_pool_t *pool, size_t size);
+-void *ngx_pnalloc(ngx_pool_t *pool, size_t size);
+-void *ngx_pcalloc(ngx_pool_t *pool, size_t size);
+-void *ngx_pmemalign(ngx_pool_t *pool, size_t size, size_t alignment);
++void *ngx_palloc(ngx_pool_t *pool, size_t size) __attribute__((alloc_size(2)));
++void *ngx_pnalloc(ngx_pool_t *pool, size_t size) __attribute__((alloc_size(2)));
++void *ngx_pcalloc(ngx_pool_t *pool, size_t size) __attribute__((alloc_size(2)));
++void *ngx_pmemalign(ngx_pool_t *pool, size_t size, size_t alignment) __attribute__((alloc_size(2)));
+ ngx_int_t ngx_pfree(ngx_pool_t *pool, void *p);
+ 
+ 
+diff --git src/core/ngx_queue.h src/core/ngx_queue.h
+index 038bf121..6a01e7b6 100644
+--- src/core/ngx_queue.h
++++ src/core/ngx_queue.h
+@@ -4,7 +4,6 @@
+  * Copyright (C) Nginx, Inc.
+  */
+ 
+-
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
+@@ -18,7 +17,7 @@ typedef struct ngx_queue_s  ngx_queue_t;
+ struct ngx_queue_s {
+     ngx_queue_t  *prev;
+     ngx_queue_t  *next;
+-};
++} _ngx_safe_container_bounds;
+ 
+ 
+ #define ngx_queue_init(q)                                                     \
+diff --git src/core/ngx_rbtree.h src/core/ngx_rbtree.h
+index e8c35821..70bc613e 100644
+--- src/core/ngx_rbtree.h
++++ src/core/ngx_rbtree.h
+@@ -26,7 +26,7 @@ struct ngx_rbtree_node_s {
+     ngx_rbtree_node_t     *parent;
+     u_char                 color;
+     u_char                 data;
+-};
++} _ngx_safe_container_bounds;
+ 
+ 
+ typedef struct ngx_rbtree_s  ngx_rbtree_t;
+diff --git src/core/ngx_resolver.c src/core/ngx_resolver.c
+index c76c1785..ecc9bb97 100644
+--- src/core/ngx_resolver.c
++++ src/core/ngx_resolver.c
+@@ -1855,7 +1855,7 @@ found:
+         goto short_response;
+     }
+ 
+-    qs = (ngx_resolver_qs_t *) &buf[i];
++    qs = (ngx_resolver_qs_t *) _ngx_aggressive_bounded_addressof(buf[i], sizeof(*qs));
+ 
+     qtype = (qs->type_hi << 8) + qs->type_lo;
+     qclass = (qs->class_hi << 8) + qs->class_lo;
+@@ -2189,7 +2189,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
+             goto short_response;
+         }
+ 
+-        an = (ngx_resolver_an_t *) &buf[i];
++        an = (ngx_resolver_an_t *) _ngx_aggressive_bounded_addressof(buf[i], sizeof(*an));
+ 
+         type = (an->type_hi << 8) + an->type_lo;
+         class = (an->class_hi << 8) + an->class_lo;
+@@ -2257,7 +2257,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
+ 
+         case NGX_RESOLVE_CNAME:
+ 
+-            cname = &buf[i];
++            cname = _ngx_aggressive_unbounded_addressof(buf[i]);
+ 
+             break;
+ 
+@@ -2347,7 +2347,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
+                 i += 1 + buf[i];
+             }
+ 
+-            an = (ngx_resolver_an_t *) &buf[i];
++            an = (ngx_resolver_an_t *) _ngx_aggressive_bounded_addressof(buf[i], sizeof(*an));
+ 
+             type = (an->type_hi << 8) + an->type_lo;
+             len = (an->len_hi << 8) + an->len_lo;
+@@ -2374,7 +2374,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
+ #if (NGX_HAVE_INET6)
+             else if (type == NGX_RESOLVE_AAAA) {
+ 
+-                ngx_memcpy(addr6[j].s6_addr, &buf[i], 16);
++                ngx_memcpy(addr6[j].s6_addr, _ngx_aggressive_bounded_addressof(buf[i], 16), 16);
+ 
+                 if (++j == naddrs) {
+ 
+@@ -2761,7 +2761,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
+                 goto short_response;
+             }
+ 
+-            if (ngx_resolver_copy(r, NULL, buf, &buf[i + 6], buf + n)
++            if (ngx_resolver_copy(r, NULL, buf, _ngx_aggressive_unbounded_addressof(buf[i + 6]), buf + n)
+                 != NGX_OK)
+             {
+                 goto failed;
+@@ -2773,7 +2773,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
+ 
+         case NGX_RESOLVE_CNAME:
+ 
+-            cname = &buf[i];
++            cname = _ngx_aggressive_unbounded_addressof(buf[i]);
+ 
+             break;
+ 
+@@ -2842,7 +2842,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
+ 
+                 srvs[j].port = (buf[i + 4] << 8) + buf[i + 5];
+ 
+-                if (ngx_resolver_copy(r, &srvs[j].name, buf, &buf[i + 6],
++                if (ngx_resolver_copy(r, &srvs[j].name, buf, _ngx_aggressive_unbounded_addressof(buf[i + 6]),
+                                       buf + n)
+                     != NGX_OK)
+                 {
+@@ -4008,11 +4008,11 @@ ngx_resolver_copy(ngx_resolver_t *r, ngx_str_t *name, u_char *buf, u_char *src,
+             }
+ 
+             n = ((n & 0x3f) << 8) + *p;
+-            p = &buf[n];
++            p = _ngx_aggressive_unbounded_addressof(buf[n]);
+ 
+         } else {
+             len += 1 + n;
+-            p = &p[n];
++            p = _ngx_aggressive_unbounded_addressof(p[n]);
+         }
+ 
+         if (p >= last) {
+@@ -4057,7 +4057,7 @@ done:
+ 
+         if (n & 0xc0) {
+             n = ((n & 0x3f) << 8) + *src;
+-            src = &buf[n];
++            src = _ngx_aggressive_unbounded_addressof(buf[n]);
+ 
+         } else {
+             ngx_strlow(dst, src, n);
+diff --git src/core/ngx_slab.c src/core/ngx_slab.c
+index b8577ce7..8a45b64f 100644
+--- src/core/ngx_slab.c
++++ src/core/ngx_slab.c
+@@ -4,6 +4,7 @@
+  * Copyright (C) Nginx, Inc.
+  */
+ 
++#include <cheri/cheric.h>
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
+@@ -40,14 +41,17 @@
+ 
+ #endif
+ 
+-
+-#define ngx_slab_slots(pool)                                                  \
++/*
++ * XXX-AM: It would be nice to make this exactly representable.
++ * We should probably cache a capability to the slots in the pool?
++ */
++#define ngx_slab_slots(pool)                                        \
+     (ngx_slab_page_t *) ((u_char *) (pool) + sizeof(ngx_slab_pool_t))
+ 
+-#define ngx_slab_page_type(page)   ((page)->prev & NGX_SLAB_PAGE_MASK)
++#define ngx_slab_page_type(page)   cheri_get_low_ptr_bits((page)->prev, NGX_SLAB_PAGE_MASK)
+ 
+ #define ngx_slab_page_prev(page)                                              \
+-    (ngx_slab_page_t *) ((page)->prev & ~NGX_SLAB_PAGE_MASK)
++    (ngx_slab_page_t *) cheri_clear_low_ptr_bits((page)->prev, NGX_SLAB_PAGE_MASK)
+ 
+ #define ngx_slab_page_addr(pool, page)                                        \
+     ((((page) - (pool)->pages) << ngx_pagesize_shift)                         \
+@@ -124,7 +128,12 @@ ngx_slab_init(ngx_slab_pool_t *pool)
+ 
+     p += n * sizeof(ngx_slab_page_t);
+ 
++#if __has_feature(capabilities)
++    pool->stats = (ngx_slab_stat_t *) cheri_setbounds(
++        p, n * sizeof(ngx_slab_stat_t));
++#else
+     pool->stats = (ngx_slab_stat_t *) p;
++#endif
+     ngx_memzero(pool->stats, n * sizeof(ngx_slab_stat_t));
+ 
+     p += n * sizeof(ngx_slab_stat_t);
+@@ -133,7 +142,11 @@ ngx_slab_init(ngx_slab_pool_t *pool)
+ 
+     pages = (ngx_uint_t) (size / (ngx_pagesize + sizeof(ngx_slab_page_t)));
+ 
++#if __has_feature(capabilities)
++    pool->pages = (ngx_slab_page_t *) cheri_setbounds(p, pages * sizeof(ngx_slab_page_t));
++#else
+     pool->pages = (ngx_slab_page_t *) p;
++#endif
+     ngx_memzero(pool->pages, pages * sizeof(ngx_slab_page_t));
+ 
+     page = pool->pages;
+@@ -184,8 +197,9 @@ void *
+ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+ {
+     size_t            s;
+-    uintptr_t         p, m, mask, *bitmap;
+-    ngx_uint_t        i, n, slot, shift, map;
++    uintptr_t         p;
++    ptraddr_t           m, mask, *bitmap, n;
++    ngx_uint_t        i, slot, shift, map;
+     ngx_slab_page_t  *page, *prev, *slots;
+ 
+     if (size > ngx_slab_max_size) {
+@@ -227,7 +241,7 @@ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+ 
+         if (shift < ngx_slab_exact_shift) {
+ 
+-            bitmap = (uintptr_t *) ngx_slab_page_addr(pool, page);
++            bitmap = (ptraddr_t *) ngx_slab_page_addr(pool, page);
+ 
+             map = (ngx_pagesize >> shift) / (8 * sizeof(uintptr_t));
+ 
+@@ -295,10 +309,10 @@ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+ 
+         } else { /* shift > ngx_slab_exact_shift */
+ 
+-            mask = ((uintptr_t) 1 << (ngx_pagesize >> shift)) - 1;
++            mask = ((ptraddr_t) 1 << (ngx_pagesize >> shift)) - 1;
+             mask <<= NGX_SLAB_MAP_SHIFT;
+ 
+-            for (m = (uintptr_t) 1 << NGX_SLAB_MAP_SHIFT, i = 0;
++            for (m = (ptraddr_t) 1 << NGX_SLAB_MAP_SHIFT, i = 0;
+                  m & mask;
+                  m <<= 1, i++)
+             {
+@@ -333,7 +347,7 @@ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+ 
+     if (page) {
+         if (shift < ngx_slab_exact_shift) {
+-            bitmap = (uintptr_t *) ngx_slab_page_addr(pool, page);
++            bitmap = (ptraddr_t *) ngx_slab_page_addr(pool, page);
+ 
+             n = (ngx_pagesize >> shift) / ((1 << shift) * 8);
+ 
+@@ -347,7 +361,7 @@ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+                 bitmap[i] = NGX_SLAB_BUSY;
+             }
+ 
+-            m = ((uintptr_t) 1 << ((n + 1) % (8 * sizeof(uintptr_t)))) - 1;
++            m = ((ptraddr_t) 1 << ((n + 1) % (8 * sizeof(uintptr_t)))) - 1;
+             bitmap[i] = m;
+ 
+             map = (ngx_pagesize >> shift) / (8 * sizeof(uintptr_t));
+@@ -388,7 +402,7 @@ ngx_slab_alloc_locked(ngx_slab_pool_t *pool, size_t size)
+ 
+         } else { /* shift > ngx_slab_exact_shift */
+ 
+-            page->slab = ((uintptr_t) 1 << NGX_SLAB_MAP_SHIFT) | shift;
++            page->slab = ((ptraddr_t) 1 << NGX_SLAB_MAP_SHIFT) | shift;
+             page->next = &slots[slot];
+             page->prev = (uintptr_t) &slots[slot] | NGX_SLAB_BIG;
+ 
+@@ -461,7 +475,7 @@ void
+ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+ {
+     size_t            size;
+-    uintptr_t         slab, m, *bitmap;
++    ptraddr_t           slab, m, *bitmap;
+     ngx_uint_t        i, n, type, slot, shift, map;
+     ngx_slab_page_t  *slots, *page;
+ 
+@@ -484,15 +498,14 @@ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+         shift = slab & NGX_SLAB_SHIFT_MASK;
+         size = (size_t) 1 << shift;
+ 
+-        if ((uintptr_t) p & (size - 1)) {
++        if ((ptraddr_t) p & (size - 1)) {
+             goto wrong_chunk;
+         }
+ 
+-        n = ((uintptr_t) p & (ngx_pagesize - 1)) >> shift;
+-        m = (uintptr_t) 1 << (n % (8 * sizeof(uintptr_t)));
+-        n /= 8 * sizeof(uintptr_t);
+-        bitmap = (uintptr_t *)
+-                             ((uintptr_t) p & ~((uintptr_t) ngx_pagesize - 1));
++        n = ((ptraddr_t) p & (ngx_pagesize - 1)) >> shift;
++        m = (ptraddr_t) 1 << (n % (sizeof(uintptr_t) * 8));
++        n /= sizeof(uintptr_t) * 8;
++        bitmap = (ptraddr_t *)__builtin_align_down(p, ngx_pagesize);
+ 
+         if (bitmap[n] & m) {
+             slot = shift - pool->min_shift;
+@@ -516,7 +529,7 @@ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+             }
+ 
+             i = n / (8 * sizeof(uintptr_t));
+-            m = ((uintptr_t) 1 << (n % (8 * sizeof(uintptr_t)))) - 1;
++            m = ((ptraddr_t) 1 << (n % (8 * sizeof(uintptr_t)))) - 1;
+ 
+             if (bitmap[i] & ~m) {
+                 goto done;
+@@ -541,11 +554,11 @@ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+ 
+     case NGX_SLAB_EXACT:
+ 
+-        m = (uintptr_t) 1 <<
+-                (((uintptr_t) p & (ngx_pagesize - 1)) >> ngx_slab_exact_shift);
++        m = (ptraddr_t) 1 <<
++                (((ptraddr_t) p & (ngx_pagesize - 1)) >> ngx_slab_exact_shift);
+         size = ngx_slab_exact_size;
+ 
+-        if ((uintptr_t) p & (size - 1)) {
++        if ((ptraddr_t) p & (size - 1)) {
+             goto wrong_chunk;
+         }
+ 
+@@ -582,11 +595,11 @@ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+         shift = slab & NGX_SLAB_SHIFT_MASK;
+         size = (size_t) 1 << shift;
+ 
+-        if ((uintptr_t) p & (size - 1)) {
++        if ((ptraddr_t) p & (size - 1)) {
+             goto wrong_chunk;
+         }
+ 
+-        m = (uintptr_t) 1 << ((((uintptr_t) p & (ngx_pagesize - 1)) >> shift)
++        m = (ptraddr_t) 1 << ((((ptraddr_t) p & (ngx_pagesize - 1)) >> shift)
+                               + NGX_SLAB_MAP_SHIFT);
+ 
+         if (slab & m) {
+@@ -619,7 +632,7 @@ ngx_slab_free_locked(ngx_slab_pool_t *pool, void *p)
+ 
+     case NGX_SLAB_PAGE:
+ 
+-        if ((uintptr_t) p & (ngx_pagesize - 1)) {
++        if ((ptraddr_t) p & (ngx_pagesize - 1)) {
+             goto wrong_chunk;
+         }
+ 
+@@ -684,15 +697,17 @@ ngx_slab_alloc_pages(ngx_slab_pool_t *pool, ngx_uint_t pages)
+         if (page->slab >= pages) {
+ 
+             if (page->slab > pages) {
+-                page[page->slab - 1].prev = (uintptr_t) &page[pages];
++                page[page->slab - 1].prev =
++                    (uintptr_t) _ngx_aggressive_unbounded_addressof(page[pages]);
+ 
+                 page[pages].slab = page->slab - pages;
+                 page[pages].next = page->next;
+                 page[pages].prev = page->prev;
+ 
+                 p = (ngx_slab_page_t *) page->prev;
+-                p->next = &page[pages];
+-                page->next->prev = (uintptr_t) &page[pages];
++                p->next = _ngx_aggressive_unbounded_addressof(page[pages]);
++                page->next->prev =
++                    (uintptr_t) _ngx_aggressive_unbounded_addressof(page[pages]);
+ 
+             } else {
+                 p = (ngx_slab_page_t *) page->prev;
+@@ -741,7 +756,8 @@ ngx_slab_free_pages(ngx_slab_pool_t *pool, ngx_slab_page_t *page,
+     page->slab = pages--;
+ 
+     if (pages) {
+-        ngx_memzero(&page[1], pages * sizeof(ngx_slab_page_t));
++        ngx_memzero(_ngx_aggressive_unbounded_addressof(page[1]),
++                    pages * sizeof(ngx_slab_page_t));
+     }
+ 
+     if (page->next) {
+diff --git src/core/ngx_slab.h src/core/ngx_slab.h
+index d1876bbe..962ab4c0 100644
+--- src/core/ngx_slab.h
++++ src/core/ngx_slab.h
+@@ -8,7 +8,6 @@
+ #ifndef _NGX_SLAB_H_INCLUDED_
+ #define _NGX_SLAB_H_INCLUDED_
+ 
+-
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
+@@ -16,7 +15,7 @@
+ typedef struct ngx_slab_page_s  ngx_slab_page_t;
+ 
+ struct ngx_slab_page_s {
+-    uintptr_t         slab;
++    ptraddr_t         slab;
+     ngx_slab_page_t  *next;
+     uintptr_t         prev;
+ };
+diff --git src/event/modules/ngx_kqueue_module.c src/event/modules/ngx_kqueue_module.c
+index 9c7244c4..c139864a 100644
+--- src/event/modules/ngx_kqueue_module.c
++++ src/event/modules/ngx_kqueue_module.c
+@@ -345,8 +345,8 @@ ngx_kqueue_del_event(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags)
+     ev->disabled = 0;
+ 
+     if (ev->index < nchanges
+-        && ((uintptr_t) change_list[ev->index].udata & (uintptr_t) ~1)
+-            == (uintptr_t) ev)
++        && (cheri_clear_low_ptr_bits((uintptr_t) change_list[ev->index].udata, 1)
++            == (uintptr_t) ev))
+     {
+         ngx_log_debug2(NGX_LOG_DEBUG_EVENT, ev->log, 0,
+                        "kevent deleted: %d: ft:%i",
+@@ -358,7 +358,7 @@ ngx_kqueue_del_event(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags)
+ 
+         if (ev->index < nchanges) {
+             e = (ngx_event_t *)
+-                    ((uintptr_t) change_list[nchanges].udata & (uintptr_t) ~1);
++                    cheri_clear_low_ptr_bits((uintptr_t) change_list[nchanges].udata, 1);
+             change_list[ev->index] = change_list[nchanges];
+             e->index = ev->index;
+         }
+@@ -600,8 +600,8 @@ ngx_kqueue_process_events(ngx_cycle_t *cycle, ngx_msec_t timer,
+         case EVFILT_READ:
+         case EVFILT_WRITE:
+ 
+-            instance = (uintptr_t) ev & 1;
+-            ev = (ngx_event_t *) ((uintptr_t) ev & (uintptr_t) ~1);
++            instance = cheri_get_low_ptr_bits((uintptr_t) ev, 1);
++            ev = (ngx_event_t *) cheri_clear_low_ptr_bits((uintptr_t) ev, 1);
+ 
+             if (ev->closed || ev->instance != instance) {
+ 
+diff --git src/http/modules/ngx_http_log_module.c src/http/modules/ngx_http_log_module.c
+index f7c4bd2f..d3858b0b 100644
+--- src/http/modules/ngx_http_log_module.c
++++ src/http/modules/ngx_http_log_module.c
+@@ -773,11 +773,11 @@ static u_char *
+ ngx_http_log_copy_short(ngx_http_request_t *r, u_char *buf,
+     ngx_http_log_op_t *op)
+ {
+-    size_t     len;
+-    uintptr_t  data;
++    size_t      len;
++    ngx_ptraddr_t data;
+ 
+     len = op->len;
+-    data = op->data;
++    data = (ngx_ptraddr_t) op->data;
+ 
+     while (len--) {
+         *buf++ = (u_char) (data & 0xff);
+@@ -1621,7 +1621,7 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
+                 return NGX_CONF_ERROR;
+             }
+ 
+-            data = &value[s].data[i];
++            data = _ngx_aggressive_unbounded_addressof(value[s].data[i]);
+ 
+             if (value[s].data[i] == '$') {
+ 
+@@ -1636,11 +1636,11 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
+                         goto invalid;
+                     }
+ 
+-                    var.data = &value[s].data[i];
++                    var.data = _ngx_aggressive_unbounded_addressof(value[s].data[i]);
+ 
+                 } else {
+                     bracket = 0;
+-                    var.data = &value[s].data[i];
++                    var.data = _ngx_aggressive_unbounded_addressof(value[s].data[i]);
+                 }
+ 
+                 for (var.len = 0; i < value[s].len; i++, var.len++) {
+@@ -1722,7 +1722,7 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
+                 op->len = len;
+                 op->getlen = NULL;
+ 
+-                if (len <= sizeof(uintptr_t)) {
++                if (len <= sizeof(ngx_ptraddr_t)) {
+                     op->run = ngx_http_log_copy_short;
+                     op->data = 0;
+ 
+diff --git src/http/modules/ngx_http_upstream_hash_module.c src/http/modules/ngx_http_upstream_hash_module.c
+index e741eb23..141a9bae 100644
+--- src/http/modules/ngx_http_upstream_hash_module.c
++++ src/http/modules/ngx_http_upstream_hash_module.c
+@@ -169,7 +169,7 @@ ngx_http_upstream_get_hash_peer(ngx_peer_connection_t *pc, void *data)
+     size_t                        size;
+     uint32_t                      hash;
+     ngx_int_t                     w;
+-    uintptr_t                     m;
++    ptraddr_t                     m;
+     ngx_uint_t                    n, p;
+     ngx_http_upstream_rr_peer_t  *peer;
+ 
+@@ -222,7 +222,7 @@ ngx_http_upstream_get_hash_peer(ngx_peer_connection_t *pc, void *data)
+         }
+ 
+         n = p / (8 * sizeof(uintptr_t));
+-        m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
++        m = (ptraddr_t) 1 << p % (8 * sizeof(uintptr_t));
+ 
+         if (hp->rrp.tried[n] & m) {
+             goto next;
+@@ -495,7 +495,7 @@ ngx_http_upstream_get_chash_peer(ngx_peer_connection_t *pc, void *data)
+     ngx_http_upstream_hash_peer_data_t  *hp = data;
+ 
+     time_t                              now;
+-    intptr_t                            m;
++    ptraddr_t                           m;
+     ngx_str_t                          *server;
+     ngx_int_t                           total;
+     ngx_uint_t                          i, n, best_i;
+@@ -539,7 +539,7 @@ ngx_http_upstream_get_chash_peer(ngx_peer_connection_t *pc, void *data)
+              peer = peer->next, i++)
+         {
+             n = i / (8 * sizeof(uintptr_t));
+-            m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
++            m = (ptraddr_t) 1 << i % (8 * sizeof(uintptr_t));
+ 
+             if (hp->rrp.tried[n] & m) {
+                 continue;
+@@ -611,7 +611,7 @@ found:
+     ngx_http_upstream_rr_peers_unlock(hp->rrp.peers);
+ 
+     n = best_i / (8 * sizeof(uintptr_t));
+-    m = (uintptr_t) 1 << best_i % (8 * sizeof(uintptr_t));
++    m = (ptraddr_t) 1 << best_i % (8 * sizeof(uintptr_t));
+ 
+     hp->rrp.tried[n] |= m;
+ 
+diff --git src/http/modules/ngx_http_upstream_ip_hash_module.c src/http/modules/ngx_http_upstream_ip_hash_module.c
+index 1fa01d95..996f543f 100644
+--- src/http/modules/ngx_http_upstream_ip_hash_module.c
++++ src/http/modules/ngx_http_upstream_ip_hash_module.c
+@@ -152,7 +152,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
+ 
+     time_t                        now;
+     ngx_int_t                     w;
+-    uintptr_t                     m;
++    ptraddr_t                     m;
+     ngx_uint_t                    i, n, p, hash;
+     ngx_http_upstream_rr_peer_t  *peer;
+ 
+@@ -192,7 +192,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
+         }
+ 
+         n = p / (8 * sizeof(uintptr_t));
+-        m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
++        m = (ptraddr_t) 1 << p % (8 * sizeof(uintptr_t));
+ 
+         if (iphp->rrp.tried[n] & m) {
+             goto next;
+diff --git src/http/modules/ngx_http_upstream_least_conn_module.c src/http/modules/ngx_http_upstream_least_conn_module.c
+index ebe06276..82dcc492 100644
+--- src/http/modules/ngx_http_upstream_least_conn_module.c
++++ src/http/modules/ngx_http_upstream_least_conn_module.c
+@@ -102,7 +102,7 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
+     ngx_http_upstream_rr_peer_data_t  *rrp = data;
+ 
+     time_t                         now;
+-    uintptr_t                      m;
++    ptraddr_t                      m;
+     ngx_int_t                      rc, total;
+     ngx_uint_t                     i, n, p, many;
+     ngx_http_upstream_rr_peer_t   *peer, *best;
+@@ -137,7 +137,7 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
+          peer = peer->next, i++)
+     {
+         n = i / (8 * sizeof(uintptr_t));
+-        m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
++        m = (ptraddr_t) 1 << i % (8 * sizeof(uintptr_t));
+ 
+         if (rrp->tried[n] & m) {
+             continue;
+@@ -192,7 +192,7 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
+              peer = peer->next, i++)
+         {
+             n = i / (8 * sizeof(uintptr_t));
+-            m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
++            m = (ptraddr_t) 1 << i % (8 * sizeof(uintptr_t));
+ 
+             if (rrp->tried[n] & m) {
+                 continue;
+@@ -246,7 +246,7 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
+     rrp->current = best;
+ 
+     n = p / (8 * sizeof(uintptr_t));
+-    m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
++    m = (ptraddr_t) 1 << p % (8 * sizeof(uintptr_t));
+ 
+     rrp->tried[n] |= m;
+ 
+diff --git src/http/ngx_http_core_module.c src/http/ngx_http_core_module.c
+index 2140e062..ea4ed5b2 100644
+--- src/http/ngx_http_core_module.c
++++ src/http/ngx_http_core_module.c
+@@ -872,7 +872,8 @@ ngx_http_core_run_phases(ngx_http_request_t *r)
+ 
+     while (ph[r->phase_handler].checker) {
+ 
+-        rc = ph[r->phase_handler].checker(r, &ph[r->phase_handler]);
++        rc = ph[r->phase_handler].checker(r,
++            _ngx_aggressive_unbounded_addressof(ph[r->phase_handler]));
+ 
+         if (rc == NGX_OK) {
+             return;
+@@ -1658,7 +1659,8 @@ ngx_http_set_exten(ngx_http_request_t *r)
+         if (r->uri.data[i] == '.' && r->uri.data[i - 1] != '/') {
+ 
+             r->exten.len = r->uri.len - i - 1;
+-            r->exten.data = &r->uri.data[i + 1];
++            r->exten.data = _ngx_aggressive_bounded_addressof(
++                r->uri.data[i + 1], r->exten.len);
+ 
+             return;
+ 
+@@ -3419,7 +3421,7 @@ ngx_http_core_init_main_conf(ngx_conf_t *cf, void *conf)
+ 
+ 
+     ngx_conf_init_uint_value(cmcf->variables_hash_max_size, 1024);
+-    ngx_conf_init_uint_value(cmcf->variables_hash_bucket_size, 64);
++    ngx_conf_init_uint_value(cmcf->variables_hash_bucket_size, 128);
+ 
+     cmcf->variables_hash_bucket_size =
+                ngx_align(cmcf->variables_hash_bucket_size, ngx_cacheline_size);
+@@ -3698,7 +3700,7 @@ ngx_http_core_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+                               prev->types_hash_max_size, 1024);
+ 
+     ngx_conf_merge_uint_value(conf->types_hash_bucket_size,
+-                              prev->types_hash_bucket_size, 64);
++                              prev->types_hash_bucket_size, 128);
+ 
+     conf->types_hash_bucket_size = ngx_align(conf->types_hash_bucket_size,
+                                              ngx_cacheline_size);
+@@ -4792,7 +4794,9 @@ ngx_http_core_error_page(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+         }
+ 
+         if (value[i].len > 1) {
+-            overwrite = ngx_atoi(&value[i].data[1], value[i].len - 1);
++            overwrite = ngx_atoi(
++                _ngx_aggressive_bounded_addressof(value[i].data[1], value[i].len - 1),
++                value[i].len - 1);
+ 
+             if (overwrite == NGX_ERROR) {
+                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+@@ -5026,7 +5030,10 @@ ngx_http_core_resolver(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ 
+     value = cf->args->elts;
+ 
+-    clcf->resolver = ngx_resolver_create(cf, &value[1], cf->args->nelts - 1);
++    clcf->resolver = ngx_resolver_create(cf,
++        _ngx_aggressive_bounded_addressof(value[1],
++            sizeof(*value) * (cf->args->nelts - 1)),
++        cf->args->nelts - 1);
+     if (clcf->resolver == NULL) {
+         return NGX_CONF_ERROR;
+     }
+diff --git src/http/ngx_http_huff_encode.c src/http/ngx_http_huff_encode.c
+index c03b153d..88e0d16f 100644
+--- src/http/ngx_http_huff_encode.c
++++ src/http/ngx_http_huff_encode.c
+@@ -156,7 +156,7 @@ static ngx_http_huff_encode_code_t  ngx_http_huff_encode_table_lc[256] =
+ };
+ 
+ 
+-#if (NGX_PTR_SIZE == 8)
++#if ((defined(__SIZEOF_SIZE_T__) && __SIZEOF_SIZE_T__ == 8) || (!defined(__SIZEOF_SIZE_T__) && NGX_PTR_SIZE == 8))
+ 
+ #if (NGX_HAVE_LITTLE_ENDIAN)
+ 
+diff --git src/http/ngx_http_request.h src/http/ngx_http_request.h
+index 8c9eed24..ea8a4ae2 100644
+--- src/http/ngx_http_request.h
++++ src/http/ngx_http_request.h
+@@ -373,6 +373,9 @@ struct ngx_http_posted_request_s {
+ typedef ngx_int_t (*ngx_http_handler_pt)(ngx_http_request_t *r);
+ typedef void (*ngx_http_event_handler_pt)(ngx_http_request_t *r);
+ 
++typedef struct {
++    ngx_http_posted_request_t         terminal_posted_request;
++} ngx_http_ephemeral_t;
+ 
+ struct ngx_http_request_s {
+     uint32_t                          signature;         /* "HTTP" */
+@@ -581,8 +584,30 @@ struct ngx_http_request_s {
+     /*
+      * a memory that can be reused after parsing a request line
+      * via ngx_http_ephemeral_t
++     *
++     * XXX-AM: This seems to be implicitly an union of the following fields.
++     * Sub-object bounds require us to be explicit.
+      */
+-
++#ifdef WITH_SUBOBJECT_SAFE
++    union {
++        struct {
++            u_char                   *uri_start;
++            u_char                   *uri_end;
++            u_char                   *uri_ext;
++            u_char                   *args_start;
++            u_char                   *request_start;
++            u_char                   *request_end;
++            u_char                   *method_end;
++            u_char                   *schema_start;
++            u_char                   *schema_end;
++            u_char                   *host_start;
++            u_char                   *host_end;
++            u_char                   *port_start;
++            u_char                   *port_end;
++        };
++        ngx_http_ephemeral_t _ephemeral;
++    };
++#else
+     u_char                           *uri_start;
+     u_char                           *uri_end;
+     u_char                           *uri_ext;
+@@ -596,18 +621,18 @@ struct ngx_http_request_s {
+     u_char                           *host_end;
+     u_char                           *port_start;
+     u_char                           *port_end;
++#endif
+ 
+     unsigned                          http_minor:16;
+     unsigned                          http_major:16;
+ };
+ 
+ 
+-typedef struct {
+-    ngx_http_posted_request_t         terminal_posted_request;
+-} ngx_http_ephemeral_t;
+-
+-
++#ifdef WITH_SUBOBJECT_SAFE
++#define ngx_http_ephemeral(r)  (void *) (&r->_ephemeral)
++#else
+ #define ngx_http_ephemeral(r)  (void *) (&r->uri_start)
++#endif
+ 
+ 
+ extern ngx_http_header_t       ngx_http_headers_in[];
+diff --git src/http/ngx_http_script.c src/http/ngx_http_script.c
+index a2b9f1b7..4d534113 100644
+--- src/http/ngx_http_script.c
++++ src/http/ngx_http_script.c
+@@ -511,11 +511,11 @@ ngx_http_script_compile(ngx_http_script_compile_t *sc)
+                     goto invalid_variable;
+                 }
+ 
+-                name.data = &sc->source->data[i];
++                name.data = _ngx_aggressive_unbounded_addressof(sc->source->data[i]);
+ 
+             } else {
+                 bracket = 0;
+-                name.data = &sc->source->data[i];
++                name.data = _ngx_aggressive_unbounded_addressof(sc->source->data[i]);
+             }
+ 
+             for ( /* void */ ; i < sc->source->len; i++, name.len++) {
+@@ -571,7 +571,7 @@ ngx_http_script_compile(ngx_http_script_compile_t *sc)
+             continue;
+         }
+ 
+-        name.data = &sc->source->data[i];
++        name.data = _ngx_aggressive_unbounded_addressof(sc->source->data[i]);
+ 
+         while (i < sc->source->len) {
+ 
+@@ -878,7 +878,7 @@ ngx_http_script_copy_code(ngx_http_script_engine_t *e)
+     }
+ 
+     e->ip += sizeof(ngx_http_script_copy_code_t)
+-          + ((code->len + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
++          + __builtin_align_up(code->len, sizeof(uintptr_t));
+ 
+     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, e->request->connection->log, 0,
+                    "http script copy: \"%*s\"", e->pos - p, p);
+@@ -1400,7 +1400,8 @@ ngx_http_script_copy_capture_code(ngx_http_script_engine_t *e)
+                                                cap[n + 1] - cap[n],
+                                                NGX_ESCAPE_ARGS);
+         } else {
+-            e->pos = ngx_copy(pos, &p[cap[n]], cap[n + 1] - cap[n]);
++            e->pos = ngx_copy(pos, _ngx_aggressive_unbounded_addressof(p[cap[n]]),
++                              cap[n + 1] - cap[n]);
+         }
+     }
+ 
+diff --git src/http/ngx_http_upstream_round_robin.c src/http/ngx_http_upstream_round_robin.c
+index 1f15fae5..1a67442b 100644
+--- src/http/ngx_http_upstream_round_robin.c
++++ src/http/ngx_http_upstream_round_robin.c
+@@ -282,7 +282,8 @@ ngx_http_upstream_init_round_robin_peer(ngx_http_request_t *r,
+     }
+ 
+     if (n <= 8 * sizeof(uintptr_t)) {
+-        rrp->tried = &rrp->data;
++        // FIXME: this is probably wrong
++        rrp->tried = (ptraddr_t*)&rrp->data;
+         rrp->data = 0;
+ 
+     } else {
+@@ -402,7 +403,8 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
+     rrp->config = 0;
+ 
+     if (rrp->peers->number <= 8 * sizeof(uintptr_t)) {
+-        rrp->tried = &rrp->data;
++        // FIXME: this is probably wrong
++        rrp->tried = (ptraddr_t*)&rrp->data;
+         rrp->data = 0;
+ 
+     } else {
+@@ -522,7 +524,7 @@ static ngx_http_upstream_rr_peer_t *
+ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
+ {
+     time_t                        now;
+-    uintptr_t                     m;
++    ptraddr_t                     m;
+     ngx_int_t                     total;
+     ngx_uint_t                    i, n, p;
+     ngx_http_upstream_rr_peer_t  *peer, *best;
+@@ -541,7 +543,7 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
+          peer = peer->next, i++)
+     {
+         n = i / (8 * sizeof(uintptr_t));
+-        m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
++        m = (ptraddr_t) 1 << i % (8 * sizeof(uintptr_t));
+ 
+         if (rrp->tried[n] & m) {
+             continue;
+@@ -582,7 +584,7 @@ ngx_http_upstream_get_peer(ngx_http_upstream_rr_peer_data_t *rrp)
+     rrp->current = best;
+ 
+     n = p / (8 * sizeof(uintptr_t));
+-    m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
++    m = (ptraddr_t) 1 << p % (8 * sizeof(uintptr_t));
+ 
+     rrp->tried[n] |= m;
+ 
+diff --git src/http/ngx_http_upstream_round_robin.h src/http/ngx_http_upstream_round_robin.h
+index 922ceaa0..05be35e1 100644
+--- src/http/ngx_http_upstream_round_robin.h
++++ src/http/ngx_http_upstream_round_robin.h
+@@ -129,7 +129,7 @@ typedef struct {
+     ngx_uint_t                      config;
+     ngx_http_upstream_rr_peers_t   *peers;
+     ngx_http_upstream_rr_peer_t    *current;
+-    uintptr_t                      *tried;
++    ptraddr_t                      *tried;
+     uintptr_t                       data;
+ } ngx_http_upstream_rr_peer_data_t;
+ 
+diff --git src/http/ngx_http_variables.c src/http/ngx_http_variables.c
+index 16ffda3f..a07a31ed 100644
+--- src/http/ngx_http_variables.c
++++ src/http/ngx_http_variables.c
+@@ -2587,7 +2587,7 @@ ngx_http_regex_compile(ngx_conf_t *cf, ngx_regex_compile_t *rc)
+     for (i = 0; i < n; i++) {
+         rv[i].capture = 2 * ((p[0] << 8) + p[1]);
+ 
+-        name.data = &p[2];
++        name.data = _ngx_aggressive_unbounded_addressof(p[2]);
+         name.len = ngx_strlen(name.data);
+ 
+         v = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_CHANGEABLE);
+@@ -2658,7 +2658,7 @@ ngx_http_regex_exec(ngx_http_request_t *r, ngx_http_regex_t *re, ngx_str_t *s)
+         vv->valid = 1;
+         vv->no_cacheable = 0;
+         vv->not_found = 0;
+-        vv->data = &s->data[r->captures[n]];
++        vv->data = _ngx_aggressive_unbounded_addressof(s->data[r->captures[n]]);
+ 
+ #if (NGX_DEBUG)
+         {
+diff --git src/os/unix/ngx_alloc.c src/os/unix/ngx_alloc.c
+index 5c2f7870..c5848e57 100644
+--- src/os/unix/ngx_alloc.c
++++ src/os/unix/ngx_alloc.c
+@@ -69,6 +69,9 @@ ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
+ }
+ 
+ #elif (NGX_HAVE_MEMALIGN)
++#ifdef __CHERI_PURE_CAPABILITY__
++#error should be using posix_memalign
++#endif
+ 
+ void *
+ ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
+diff --git src/os/unix/ngx_alloc.h src/os/unix/ngx_alloc.h
+index 655db257..e38599e0 100644
+--- src/os/unix/ngx_alloc.h
++++ src/os/unix/ngx_alloc.h
+@@ -13,8 +13,8 @@
+ #include <ngx_core.h>
+ 
+ 
+-void *ngx_alloc(size_t size, ngx_log_t *log);
+-void *ngx_calloc(size_t size, ngx_log_t *log);
++void *ngx_alloc(size_t size, ngx_log_t *log) __attribute__((alloc_size(1)));
++void *ngx_calloc(size_t size, ngx_log_t *log) __attribute__((alloc_size(1)));
+ 
+ #define ngx_free          free
+ 
+@@ -28,7 +28,7 @@ void *ngx_calloc(size_t size, ngx_log_t *log);
+ 
+ #if (NGX_HAVE_POSIX_MEMALIGN || NGX_HAVE_MEMALIGN)
+ 
+-void *ngx_memalign(size_t alignment, size_t size, ngx_log_t *log);
++void *ngx_memalign(size_t alignment, size_t size, ngx_log_t *log) __attribute__((alloc_size(2)));
+ 
+ #else
+ 
