@@ -1,24 +1,39 @@
-PORTNAME=	nginx
-PORTREVISION=	3
+PORTNAME=	nginx-cheri
+PORTVERSION=	${NGINX_RELEASE}.d${SNAPDATE}
+PORTREVISION=	0
+CATEGORIES=	www
 
-FLAVORS=	default subobject
-FLAVOR?=${FLAVORS:[1]}
-subobject_PKGNAMESUFFIX=	-cheri-subobject
-default_PKGNAMESUFFIX=		-cheri
+USE_GITHUB=	yes
+GH_ACCOUNT=	CTSRD-CHERI
+GH_PROJECT=	nginx
+GH_TAGNAME=	${NGINX_COMMIT}
 
 MAINTAINER=	alfredo.mazzinghi@cl.cam.ac.uk
 COMMENT=	CHERI port of the nginx WWW server
+WWW=		https://cheribsd.org/
+DESCR=		${.CURDIR}/../nginx/pkg-descr
 
-MASTERDIR=	${.CURDIR}/../nginx
+FLAVORS=	default subobject
+FLAVOR?=${FLAVORS:[1]}
+subobject_PKGNAMESUFFIX=	-subobject
 
-CONFLICTS=	nginx-1.* \
-		nginx-devel-1.* \
-		nginx-lite-1.* \
-		nginx-naxsi-1.*
-
-EXTRA_PATCHES+=	${.CURDIR}/files/cheribsd.patch
+CONFIGURE_SCRIPT=	auto/configure
 .if ${FLAVOR:U} == subobject
 CFLAGS+=	-cheri-bounds=subobject-safe -DWITH_SUBOBJECT_SAFE
 .endif
 
-.include "${MASTERDIR}/Makefile"
+.include "${.CURDIR}/Makefile.snapshot"
+
+NGINXDIR=	${.CURDIR}/../nginx
+FILESDIR=	${NGINXDIR}/files
+DESCR=      ${NGINXDIR}/pkg-descr
+PLIST=      ${NGINXDIR}/pkg-plist
+SLAVE_PORT?=	${PORTNAME}
+
+# The nginx package expects the configure, LICENSE and html files to be
+# in the top-level WRKSRC directory. This is done in nginx release tarballs.
+post-extract:
+	cp ${WRKSRC}/docs/text/LICENSE ${WRKSRC}/LICENSE
+	cp -r ${WRKSRC}/docs/html ${WRKSRC}/html
+
+.include "${NGINXDIR}/Makefile"
