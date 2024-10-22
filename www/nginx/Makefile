@@ -1,3 +1,6 @@
+.ifndef SLAVE_PORT
+IGNORE=		is replaced by www/nginx-meta on CheriBSD
+
 PORTNAME=	nginx
 PORTVERSION=	1.24.0
 PORTREVISION?=	11
@@ -10,6 +13,7 @@ DISTFILES=	${DISTNAME}${EXTRACT_SUFX}
 MAINTAINER?=	joneum@FreeBSD.org
 COMMENT?=	Robust and small WWW server
 WWW=		https://nginx.com/
+.endif
 
 LICENSE=	BSD2CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
@@ -22,7 +26,9 @@ USES=		cpe
 
 CPE_VENDOR=	f5
 CPE_PRODUCT=	nginx
+.ifndef SLAVE_PORT
 USE_GITHUB=	nodefault
+.endif
 
 NGINX_VARDIR?=	/var
 NGINX_LOGDIR?=	${NGINX_VARDIR}/log/nginx
