@@ -26,7 +26,9 @@ USES=		cpe
 
 CPE_VENDOR=	f5
 CPE_PRODUCT=	nginx
+.ifndef SLAVE_PORT
 USE_GITHUB=	nodefault
+.endif
 
 NGINX_VARDIR?=	/var
 NGINX_LOGDIR?=	${NGINX_VARDIR}/log/nginx
@@ -127,7 +129,7 @@ DEBUG_CFLAGS=		-g
 DEBUG_VARS=		STRIP=#do not strip if nginx with debug information
 DEBUGLOG_CONFIGURE_ON=	--with-debug
 DSO_CONFIGURE_ON=	--modules-path=${MODULESDIR}
-DSO_VARS=		MODULESDIR=${PREFIX}/libexec/${PORTNAME}
+DSO_VARS?=		MODULESDIR=${PREFIX}/libexec/${PORTNAME}
 FILE_AIO_CONFIGURE_ON=	--with-file-aio
 IPV6_CONFIGURE_OFF=	--with-cc-opt="-DNGX_HAVE_INET6=0 -I ${LOCALBASE}/include"
 THREADS_CONFIGURE_ON=	--with-threads
