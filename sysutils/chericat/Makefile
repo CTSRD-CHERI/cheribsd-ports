@@ -25,7 +25,7 @@ PLIST_FILES=	bin/chericat
 
 .include <bsd.port.pre.mk>
 
-.if !${ABI:Mpurecap}
+.if !${MACHINE_ABI:Mpurecap}
 IGNORE=		pure capability program
 .endif
 
