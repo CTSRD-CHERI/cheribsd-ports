@@ -68,13 +68,13 @@ tool=$0
 tool=${tool##*/}
 
 case $tool in
-cc)
+cc|clang)
 	llvmtool=clang
 	;;
-c++)
+c++|clang++)
 	llvmtool=clang++
 	;;
-cpp)
+cpp|clang-cpp)
 	llvmtool=clang-cpp
 	;;
 ld|ld.lld)
@@ -133,7 +133,7 @@ riscv64c)
 esac
 
 case $tool in
-cc|c++|cpp)
+cc|clang|c++|clang++|cpp|clang-cpp)
 	toolflags=$arch_cflags
 	;;
 ld|ld.lld)
