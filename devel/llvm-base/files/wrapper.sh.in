@@ -94,6 +94,7 @@ realtool=${LOCALBASE}/bin/${llvmtool}
 # CheriBSD: assume that if we're on a CHERI architecture we want either
 # purecap or hybrid binaries.
 arch_cflags=
+arch_ldflags=
 arch_objdump_flags=
 ARCH=`uname -p`
 case $ARCH in
@@ -107,21 +108,24 @@ aarch64)
 	arch_objdump_flags="--mattr=+morello"
 	;;
 aarch64c)
+	c18n_flags=
+	tls_flags=
+	vararg_flags=
 	if [ "$CHERIBSD_VERSION" -le 20220314 ]; then
 		tls_flags="-femulated-tls"
-		vararg_flags=
 	elif [ "$CHERIBSD_VERSION" -le 20220828 ]; then
-		tls_flags=
 		vararg_flags="-Xclang -morello-vararg=new"
 	elif [ "$CHERIBSD_VERSION" -le 20230804 ]; then
-		tls_flags=
 		vararg_flags="-Xclang -morello-vararg=new -Xclang -morello-bounded-memargs=caller-only"
+	elif [ "$CHERIBSD_VERSION" -eq 20241216 ]; then
+		vararg_flags="-Xclang -morello-vararg=new -Xclang -morello-bounded-memargs"
+		c18n_flags="-cheri-codeptr-relocs"
+		arch_ldflags="$c18n_flags"
 	else
-		tls_flags=
 		vararg_flags="-Xclang -morello-vararg=new -Xclang -morello-bounded-memargs"
 	fi
 
-	arch_cflags="-march=morello -mabi=purecap $tls_flags $vararg_flags"
+	arch_cflags="-march=morello -mabi=purecap $tls_flags $vararg_flags $c18n_flags"
 	arch_objdump_flags="--mattr=+morello"
 	;;
 riscv64)
@@ -137,9 +141,7 @@ cc|c++|cpp)
 	toolflags=$arch_cflags
 	;;
 ld|ld.lld)
-	# no flags should be required as ld can see what it's doing from
-	# the binaries
-	toolflags=
+	toolflags=$arch_ldflags
 	;;
 objdump)
 	toolflags=$arch_objdump_flags
