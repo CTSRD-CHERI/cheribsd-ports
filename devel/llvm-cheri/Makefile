@@ -205,6 +205,11 @@ post-install-DOCS-on:
 	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/lldb-tblgen.1
 .endif
 	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/mlir-tblgen.1
+.if ${LLVM_MAJOR} == 15
+	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/llvm-dwarfutil.1
+	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/llvm-ifs.1
+	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/llvm-remark-size-diff.1
+.endif
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/man/
 
