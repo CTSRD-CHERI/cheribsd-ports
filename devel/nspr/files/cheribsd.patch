@@ -1,0 +1,210 @@
+diff --git lib/ds/plarena.c lib/ds/plarena.c
+index 3c6df2b7..865bd922 100644
+--- lib/ds/plarena.c
++++ lib/ds/plarena.c
+@@ -25,7 +25,12 @@ static PLArenaStats *arena_stats_list;
+ #define COUNT(pool,what)  /* nothing */
+ #endif
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#define PL_ARENA_DEFAULT_ALIGN  alignof(max_align_t)
++#else
+ #define PL_ARENA_DEFAULT_ALIGN  sizeof(double)
++#endif
+ 
+ PR_IMPLEMENT(void) PL_InitArenaPool(
+     PLArenaPool *pool, const char *name, PRUint32 size, PRUint32 align)
+diff --git lib/ds/plarena.h lib/ds/plarena.h
+index 0ca00c0a..1b879caf 100644
+--- lib/ds/plarena.h
++++ lib/ds/plarena.h
+@@ -137,14 +137,24 @@ PL_ASAN_VISIBILITY(void) __asan_unpoison_memory_region(
+  * per ALLOCATE and GROW.
+  */
+ #ifdef PL_ARENA_CONST_ALIGN_MASK
++#if __has_builtin(__builtin_align_up)
++#define PL_ARENA_ALIGN(pool, n) \
++        __builtin_align_up(n, PL_ARENA_CONST_ALIGN_MASK + 1)
++#else
+ #define PL_ARENA_ALIGN(pool, n) (((PRUword)(n) + PL_ARENA_CONST_ALIGN_MASK) \
+                                 & ~PL_ARENA_CONST_ALIGN_MASK)
++#endif
+ 
+ #define PL_INIT_ARENA_POOL(pool, name, size) \
+         PL_InitArenaPool(pool, name, size, PL_ARENA_CONST_ALIGN_MASK + 1)
+ #else
++#if __has_builtin(__builtin_align_up)
++#define PL_ARENA_ALIGN(pool, n) \
++        __builtin_align_up(n, (size_t) ((pool)->mask + 1))
++#else
+ #define PL_ARENA_ALIGN(pool, n) (((PRUword)(n) + (pool)->mask) & ~(pool)->mask)
+ #endif
++#endif
+ 
+ #define PL_ARENA_ALLOCATE(p, pool, nb) \
+     PR_BEGIN_MACRO \
+@@ -165,6 +175,26 @@ PL_ASAN_VISIBILITY(void) __asan_unpoison_memory_region(
+         } \
+     PR_END_MACRO
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define PL_ARENA_GROW(p, pool, size, incr) \
++    PR_BEGIN_MACRO \
++        PLArena *_a = (pool)->current; \
++        PRUint32 _incr = PL_ARENA_ALIGN(pool, (PRUint32)incr); \
++        if (_incr < (PRUint32)incr) { \
++            p = NULL; \
++        } else if (_a->avail == (PRUword)(p) + (ptraddr_t)PL_ARENA_ALIGN(pool, size) && \
++            _incr <= (_a->limit - _a->avail)) { \
++            PL_MAKE_MEM_UNDEFINED((unsigned char *)(p) + size, (PRUint32)incr); \
++            _a->avail += _incr; \
++            PL_ArenaCountInplaceGrowth(pool, size, (PRUint32)incr); \
++        } else { \
++            p = PL_ArenaGrow(pool, p, size, (PRUint32)incr); \
++        } \
++        if (p) {\
++            PL_ArenaCountGrowth(pool, size, (PRUint32)incr); \
++        } \
++    PR_END_MACRO
++#else
+ #define PL_ARENA_GROW(p, pool, size, incr) \
+     PR_BEGIN_MACRO \
+         PLArena *_a = (pool)->current; \
+@@ -183,6 +213,7 @@ PL_ASAN_VISIBILITY(void) __asan_unpoison_memory_region(
+             PL_ArenaCountGrowth(pool, size, (PRUint32)incr); \
+         } \
+     PR_END_MACRO
++#endif
+ 
+ #define PL_ARENA_MARK(pool) ((void *) (pool)->current->avail)
+ #define PR_UPTRDIFF(p,q) ((PRUword)(p) - (PRUword)(q))
+diff --git pr/include/prtypes.h pr/include/prtypes.h
+index 7400367f..042a2daf 100644
+--- pr/include/prtypes.h
++++ pr/include/prtypes.h
+@@ -477,9 +477,15 @@ typedef PRUint16 PRUnichar;
+ typedef PRInt64 PRWord;
+ typedef PRUint64 PRUword;
+ #else
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdint.h>
++typedef intptr_t PRWord;
++typedef uintptr_t PRUword;
++#else
+ typedef long PRWord;
+ typedef unsigned long PRUword;
+ #endif
++#endif
+ 
+ /*
+  * PR_PRETEND_NORETURN, specified at the end of a function declaration,
+diff --git pr/src/io/priometh.c pr/src/io/priometh.c
+index 508719a8..2e1b1130 100644
+--- pr/src/io/priometh.c
++++ pr/src/io/priometh.c
+@@ -6,6 +6,10 @@
+ #include "primpl.h"
+ 
+ #include <string.h>
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif
+ 
+ /*****************************************************************************/
+ /************************** Invalid I/O method object ************************/
+@@ -282,9 +286,13 @@ PR_IMPLEMENT(PRInt32) PR_EmulateAcceptRead(
+     if (rv >= 0)
+     {
+         /* copy the new info out where caller can see it */
++#if defined(__CHERI_PURE_CAPABILITY__)
++        *raddr = (PRNetAddr*) __builtin_align_up(buf + amount, alignof(PRNetAddr));
++#else
+ #define AMASK ((PRPtrdiff)7)  /* mask for alignment of PRNetAddr */
+         PRPtrdiff aligned = (PRPtrdiff)buf + amount + AMASK;
+         *raddr = (PRNetAddr*)(aligned & ~AMASK);
++#endif
+         memcpy(*raddr, &remote, PR_NETADDR_SIZE(&remote));
+         *nd = accepted;
+         return rv;
+diff --git pr/src/io/prprf.c pr/src/io/prprf.c
+index 9b6072e2..9a30ec10 100644
+--- pr/src/io/prprf.c
++++ pr/src/io/prprf.c
+@@ -991,9 +991,21 @@ do_longlong:
+                     type = TYPE_UINT64;
+                 } else if (sizeof(void *) == sizeof(int)) {
+                     type = TYPE_UINTN;
++#if defined(__CHERI_PURE_CAPABILITY__)
++                } else {
++                    if (sizeof(ptraddr_t) == sizeof(PRInt64)) {
++                        type = TYPE_UINT64;
++		    } else if (sizeof(ptraddr_t) == sizeof(PRInt32)) {
++                        type = TYPE_UINT32;
++		    } else {
++                        PR_ASSERT(0);
++			break;
++		    }
++#else
+                 } else {
+                     PR_ASSERT(0);
+                     break;
++#endif
+                 }
+                 radix = 16;
+                 goto fetch_and_convert;
+diff --git pr/src/misc/prdtoa.c pr/src/misc/prdtoa.c
+index 51b331ba..309e289b 100644
+--- pr/src/misc/prdtoa.c
++++ pr/src/misc/prdtoa.c
+@@ -236,6 +236,10 @@ typedef unsigned Long ULong;
+ 
+ #include "stdlib.h"
+ #include "string.h"
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif
+ 
+ #ifdef USE_LOCALE
+ #include "locale.h"
+@@ -255,9 +259,14 @@ extern void *MALLOC(size_t);
+ #ifndef PRIVATE_MEM
+ #define PRIVATE_MEM 2304
+ #endif
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define PRIVATE_mem (__builtin_align_up(PRIVATE_MEM, alignof(max_align_t)))
++static char private_mem[PRIVATE_mem], *pmem_next = private_mem;
++#else
+ #define PRIVATE_mem ((PRIVATE_MEM+sizeof(double)-1)/sizeof(double))
+ static double private_mem[PRIVATE_mem], *pmem_next = private_mem;
+ #endif
++#endif
+ 
+ #undef IEEE_Arith
+ #undef Avoid_Underflow
+@@ -558,15 +567,23 @@ Balloc
+         x = 1 << k;
+ #ifdef Omit_Private_Memory
+         rv = (Bigint *)MALLOC(sizeof(Bigint) + (x-1)*sizeof(ULong));
++#else
++#if defined(__CHERI_PURE_CAPABILITY__)
++        len = __builtin_align_up(sizeof(Bigint) + (x-1)*sizeof(ULong), alignof(max_align_t));
+ #else
+         len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
+               /sizeof(double);
++#endif
+         if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem) {
+             rv = (Bigint*)pmem_next;
+             pmem_next += len;
+         }
+         else {
++#if defined(__CHERI_PURE_CAPABILITY__)
++            rv = (Bigint*)MALLOC(len);
++#else
+             rv = (Bigint*)MALLOC(len*sizeof(double));
++#endif
+         }
+ #endif
+         rv->k = k;
