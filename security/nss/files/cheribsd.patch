@@ -1,0 +1,485 @@
+diff --git cmd/fipstest/fipstest.c cmd/fipstest/fipstest.c
+index 48ca78b54..637e4ddce 100644
+--- cmd/fipstest/fipstest.c
++++ cmd/fipstest/fipstest.c
+@@ -6615,9 +6615,10 @@ loser:
+ void
+ tls(char *reqfn)
+ {
+-    char buf[256]; /* holds one line from the input REQUEST file.
++    char buf[257]; /* holds one line from the input REQUEST file.
+                          * needs to be large enough to hold the longest
+                          * line "XSeed = <128 hex digits>\n".
++			 * And a string terminator hex_to_str().
+                          */
+     unsigned char *pms = NULL;
+     int pms_len;
+diff --git gtests/pk11_gtest/pk11_cbc_unittest.cc gtests/pk11_gtest/pk11_cbc_unittest.cc
+index 58bc614f4..831ba6905 100644
+--- gtests/pk11_gtest/pk11_cbc_unittest.cc
++++ gtests/pk11_gtest/pk11_cbc_unittest.cc
+@@ -257,7 +257,11 @@ TEST_F(Pkcs11CbcPadTest, FailEncryptShortParam) {
+   size_t input_len = AES_BLOCK_SIZE;
+ 
+   // CK_NSS_GCM_PARAMS is the largest param struct used across AES modes
++#if defined(__CHERI_PURE_CAPABILITY__)
++  alignas(max_align_t) uint8_t param_buf[sizeof(CK_NSS_GCM_PARAMS)];
++#else   // !__CHERI_PURE_CAPABILITY__
+   uint8_t param_buf[sizeof(CK_NSS_GCM_PARAMS)];
++#endif  // !__CHERI_PURE_CAPABILITY__
+   SECItem param = {siBuffer, param_buf, sizeof(param_buf)};
+   SECItem key_item = {siBuffer, const_cast<uint8_t*>(kKeyData), 16};
+ 
+diff --git lib/base/arena.c lib/base/arena.c
+index b8e64643d..203b771d5 100644
+--- lib/base/arena.c
++++ lib/base/arena.c
+@@ -8,6 +8,11 @@
+  * This contains the implementation of NSS's thread-safe arenas.
+  */
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif
++
+ #ifndef BASE_H
+ #include "base.h"
+ #endif /* BASE_H */
+@@ -380,7 +385,11 @@ nssArena_Create(void)
+      * useful to us, so I'll just pick 2048.
+      */
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    PL_InitArenaPool(&rv->pool, "NSS", 2048, alignof(max_align_t));
++#else
+     PL_InitArenaPool(&rv->pool, "NSS", 2048, sizeof(double));
++#endif
+ 
+ #ifdef DEBUG
+     {
+diff --git lib/freebl/Makefile lib/freebl/Makefile
+index a7130028d..76e383d3d 100644
+--- lib/freebl/Makefile
++++ lib/freebl/Makefile
+@@ -155,6 +155,10 @@ ifeq ($(CPU_ARCH),aarch64)
+         endif
+     endif
+ endif
++ifeq ($(CPU_ARCH),aarch64c)
++    DEFINES += -DUSE_HW_AES -DUSE_HW_SHA1 -DUSE_HW_SHA2
++    EXTRA_SRCS += aes-armv8.c gcm-aarch64.c sha1-armv8.c sha256-armv8.c
++endif
+ ifeq ($(CPU_ARCH),arm)
+ ifndef NSS_DISABLE_ARM32_NEON
+     EXTRA_SRCS += gcm-arm32-neon.c
+@@ -778,6 +782,13 @@ $(OBJDIR)/$(PROG_PREFIX)sha1-armv8$(OBJ_SUFFIX): CFLAGS += -march=armv8-a+crypto
+ $(OBJDIR)/$(PROG_PREFIX)sha256-armv8$(OBJ_SUFFIX): CFLAGS += -march=armv8-a+crypto
+ endif
+ 
++ifeq ($(CPU_ARCH),aarch64c)
++$(OBJDIR)/$(PROG_PREFIX)aes-armv8$(OBJ_SUFFIX): CFLAGS += -march=morello+crypto
++$(OBJDIR)/$(PROG_PREFIX)gcm-aarch64$(OBJ_SUFFIX): CFLAGS += -march=morello+crypto
++$(OBJDIR)/$(PROG_PREFIX)sha1-armv8$(OBJ_SUFFIX): CFLAGS += -march=morello+crypto
++$(OBJDIR)/$(PROG_PREFIX)sha256-armv8$(OBJ_SUFFIX): CFLAGS += -march=morello+crypto
++endif
++
+ ifeq ($(CPU_ARCH),ppc)
+ $(OBJDIR)/$(PROG_PREFIX)sha512$(OBJ_SUFFIX): CFLAGS += -funroll-loops -fpeel-loops
+ ifneq ($(NSS_DISABLE_ALTIVEC),1)
+diff --git lib/freebl/mpi/mpcpucache.c lib/freebl/mpi/mpcpucache.c
+index 8976e0ae3..2a7088173 100644
+--- lib/freebl/mpi/mpcpucache.c
++++ lib/freebl/mpi/mpcpucache.c
+@@ -759,7 +759,11 @@ dcbzl(char *array)
+             : "memory");
+ }
+ 
++#if __has_builtin(__builtin_align_down)
++#define PPC_DO_ALIGN(x, y) __builtin_align_down(x, y)
++#else
+ #define PPC_DO_ALIGN(x, y) ((char *)((((long long)(x)) + ((y)-1)) & ~((y)-1)))
++#endif
+ 
+ #define PPC_MAX_LINE_SIZE 256
+ unsigned long
+diff --git lib/freebl/mpi/mpmontg.c lib/freebl/mpi/mpmontg.c
+index 58f5cde2a..7e40a7be7 100644
+--- lib/freebl/mpi/mpmontg.c
++++ lib/freebl/mpi/mpmontg.c
+@@ -818,7 +818,11 @@ weave_to_mpi(mp_int *a,              /* out, result */
+     ptmp = pa1; \
+     pa1 = pa2;  \
+     pa2 = ptmp
++#if __has_builtin(__builtin_align_down)
++#define MP_ALIGN(x, y) __builtin_align_down(x, y)
++#else
+ #define MP_ALIGN(x, y) ((((ptrdiff_t)(x)) + ((y)-1)) & (((ptrdiff_t)0) - (y)))
++#endif
+ 
+ /* Do modular exponentiation using integer multiply code. */
+ mp_err
+diff --git lib/smime/cmsudf.c lib/smime/cmsudf.c
+index 5c8a81e6d..e8e22b71b 100644
+--- lib/smime/cmsudf.c
++++ lib/smime/cmsudf.c
+@@ -142,7 +142,11 @@ nss_cmstype_lookup(SECOidTag type)
+     }
+     PR_Lock(nsscmstypeHashLock);
+     if (nsscmstypeHash) {
++#if defined(__CHERI_PURE_CAPABILITY__)
++        typeInfo = PL_HashTableLookupConst(nsscmstypeHash, (void *)(uintptr_t)type);
++#else   // !__CHERI_PURE_CAPABILITY__
+         typeInfo = PL_HashTableLookupConst(nsscmstypeHash, (void *)type);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     }
+     PR_Unlock(nsscmstypeHashLock);
+     return typeInfo;
+@@ -167,7 +171,11 @@ nss_cmstype_add(SECOidTag type, nsscmstypeInfo *typeinfo)
+         PR_Unlock(nsscmstypeHashLock);
+         return SECFailure;
+     }
++#if defined(__CHERI_PURE_CAPABILITY__)
++    entry = PL_HashTableAdd(nsscmstypeHash, (void *)(uintptr_t)type, typeinfo);
++#else   // !__CHERI_PURE_CAPABILITY__
+     entry = PL_HashTableAdd(nsscmstypeHash, (void *)type, typeinfo);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     PR_Unlock(nsscmstypeHashLock);
+     return entry ? SECSuccess : SECFailure;
+ }
+diff --git lib/softoken/legacydb/lgutil.c lib/softoken/legacydb/lgutil.c
+index d872bf4b3..88b4ff03a 100644
+--- lib/softoken/legacydb/lgutil.c
++++ lib/softoken/legacydb/lgutil.c
+@@ -223,8 +223,13 @@ lg_deleteTokenKeyByHandle(SDB *sdb, CK_OBJECT_HANDLE handle)
+     PRBool rem;
+     PLHashTable *hashTable = lg_GetHashTable(sdb);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    item = (SECItem *)PL_HashTableLookup(hashTable, (void *)(uintptr_t)handle);
++    rem = PL_HashTableRemove(hashTable, (void *)(uintptr_t)handle);
++#else   // !__CHERI_PURE_CAPABILITY__
+     item = (SECItem *)PL_HashTableLookup(hashTable, (void *)handle);
+     rem = PL_HashTableRemove(hashTable, (void *)handle);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     if (rem && item) {
+         SECITEM_FreeItem(item, PR_TRUE);
+     }
+@@ -243,7 +248,11 @@ lg_addTokenKeyByHandle(SDB *sdb, CK_OBJECT_HANDLE handle, SECItem *key)
+     if (item == NULL) {
+         return SECFailure;
+     }
++#if defined(__CHERI_PURE_CAPABILITY__)
++    entry = PL_HashTableAdd(hashTable, (void *)(uintptr_t)handle, item);
++#else   // !__CHERI_PURE_CAPABILITY__
+     entry = PL_HashTableAdd(hashTable, (void *)handle, item);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     if (entry == NULL) {
+         SECITEM_FreeItem(item, PR_TRUE);
+         return SECFailure;
+@@ -256,7 +265,11 @@ const SECItem *
+ lg_lookupTokenKeyByHandle(SDB *sdb, CK_OBJECT_HANDLE handle)
+ {
+     PLHashTable *hashTable = lg_GetHashTable(sdb);
++#if defined(__CHERI_PURE_CAPABILITY__)
++    return (const SECItem *)PL_HashTableLookup(hashTable, (void *)(uintptr_t)handle);
++#else   // !__CHERI_PURE_CAPABILITY__
+     return (const SECItem *)PL_HashTableLookup(hashTable, (void *)handle);
++#endif  // !__CHERI_PURE_CAPABILITY__
+ }
+ 
+ static PRIntn
+diff --git lib/softoken/pkcs11c.c lib/softoken/pkcs11c.c
+index 61e3d0aac..45eb6b95b 100644
+--- lib/softoken/pkcs11c.c
++++ lib/softoken/pkcs11c.c
+@@ -39,6 +39,10 @@
+ #include "prprf.h"
+ #include "prenv.h"
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#endif   // __CHERI_PURE_CAPABILITY__
++
+ #define __PASTE(x, y) x##y
+ #define BAD_PARAM_CAST(pMech, typeSize) (!pMech->pParameter || pMech->ulParameterLen < typeSize)
+ /*
+@@ -8770,7 +8774,12 @@ NSC_GetOperationState(CK_SESSION_HANDLE hSession,
+         return CKR_STATE_UNSAVEABLE;
+     }
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    *pulOperationStateLen = context->cipherInfoLen +
++       __builtin_align_up(sizeof(CK_MECHANISM_TYPE) + sizeof(SFTKContextType), alignof(max_align_t));
++#else   // !__CHERI_PURE_CAPABILITY__
+     *pulOperationStateLen = context->cipherInfoLen + sizeof(CK_MECHANISM_TYPE) + sizeof(SFTKContextType);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     if (pOperationState == NULL) {
+         sftk_FreeSession(session);
+         return CKR_OK;
+@@ -8784,6 +8793,12 @@ NSC_GetOperationState(CK_SESSION_HANDLE hSession,
+     PORT_Memcpy(pOperationState, &context->currentMech,
+                 sizeof(CK_MECHANISM_TYPE));
+     pOperationState += sizeof(CK_MECHANISM_TYPE);
++#if defined(__CHERI_PURE_CAPABILITY__)
++    /* pOperationState must be aligned to alignof(max_align_t) to ensure that
++     * capabilities and sentry values within the cipherInfo are preserved.
++     */
++    pOperationState = __builtin_align_up(pOperationState, alignof(max_align_t));
++#endif   // __CHERI_PURE_CAPABILITY__
+     PORT_Memcpy(pOperationState, context->cipherInfo, context->cipherInfoLen);
+     sftk_FreeSession(session);
+     return CKR_OK;
+@@ -8827,7 +8842,16 @@ NSC_SetOperationState(CK_SESSION_HANDLE hSession,
+         /* get the mechanism structure */
+         PORT_Memcpy(&mech.mechanism, pOperationState, sizeof(CK_MECHANISM_TYPE));
+         pOperationState += sizeof(CK_MECHANISM_TYPE);
++#if defined(__CHERI_PURE_CAPABILITY__)
++        /* pOperationState must be aligned to alignof(max_align_t) to ensure that
++         * capabilities and sentry values within the cipherInfo are preserved.
++         */
++        pOperationState = __builtin_align_up(pOperationState, alignof(max_align_t));
++        sftk_Decrement(ulOperationStateLen, sizeof(CK_MECHANISM_TYPE));
++        ulOperationStateLen = __builtin_align_up(ulOperationStateLen, alignof(max_align_t));
++#else   // !__CHERI_PURE_CAPABILITY__
+         sftk_Decrement(ulOperationStateLen, sizeof(CK_MECHANISM_TYPE));
++#endif  // !__CHERI_PURE_CAPABILITY__
+         /* should be filled in... but not necessary for hash */
+         mech.pParameter = NULL;
+         mech.ulParameterLen = 0;
+diff --git lib/ssl/ssl3con.c lib/ssl/ssl3con.c
+index 84246954a..69f4345c7 100644
+--- lib/ssl/ssl3con.c
++++ lib/ssl/ssl3con.c
+@@ -10622,14 +10622,22 @@ ssl3_GenerateRSAPMS(sslSocket *ss, ssl3CipherSpec *spec,
+ static void
+ ssl3_CSwapPK11SymKey(PK11SymKey **x, PK11SymKey **y, PRBool c)
+ {
++#if defined(__CHERI_PURE_CAPABILITY__)
++    ptraddr_t mask = (ptraddr_t)c;
++#else   // !__CHERI_PURE_CAPABILITY__
+     uintptr_t mask = (uintptr_t)c;
++#endif  // !__CHERI_PURE_CAPABILITY__
+     unsigned int i;
+     for (i = 1; i < sizeof(uintptr_t) * 8; i <<= 1) {
+         mask |= mask << i;
+     }
+     uintptr_t x_ptr = (uintptr_t)*x;
+     uintptr_t y_ptr = (uintptr_t)*y;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    ptraddr_t tmp = ((ptraddr_t)x_ptr ^ (ptraddr_t)y_ptr) & mask;
++#else   // !__CHERI_PURE_CAPABILITY__
+     uintptr_t tmp = (x_ptr ^ y_ptr) & mask;
++#endif  // !__CHERI_PURE_CAPABILITY__
+     x_ptr = x_ptr ^ tmp;
+     y_ptr = y_ptr ^ tmp;
+     *x = (PK11SymKey *)x_ptr;
+diff --git lib/ssl/sslsnce.c lib/ssl/sslsnce.c
+index 49f041c97..555cac2d7 100644
+--- lib/ssl/sslsnce.c
++++ lib/ssl/sslsnce.c
+@@ -242,7 +242,11 @@ static PRBool isMultiProcess = PR_FALSE;
+ #endif
+ 
+ #define SID_HOWMANY(val, size) (((val) + ((size)-1)) / (size))
++#if __has_builtin(__builtin_align_up)
++#define SID_ROUNDUP(val, size) __builtin_align_up(val, size)
++#else
+ #define SID_ROUNDUP(val, size) ((size)*SID_HOWMANY((val), (size)))
++#endif
+ 
+ static sslPID myPid;
+ static PRUint32 ssl_max_sid_cache_locks = MAX_SID_CACHE_LOCKS;
+@@ -967,25 +971,45 @@ InitCache(cacheDesc *cache, int maxCacheEntries, int maxCertCacheEntries,
+ 
+     /* compute size of shared memory, and offsets of all pointers */
+     ptr = 0;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->cacheMem = NULL;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->cacheMem = (char *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr += SID_ROUNDUP(sizeof(cacheDesc), SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->sidCacheLocks = (sidCacheLock *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->sidCacheLocks = (sidCacheLock *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     cache->keyCacheLock = cache->sidCacheLocks + cache->numSIDCacheLocks;
+     cache->certCacheLock = cache->keyCacheLock + 1;
+     cache->srvNameCacheLock = cache->certCacheLock + 1;
+     ptr = (ptrdiff_t)(cache->srvNameCacheLock + 1);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->sidCacheSets = (sidCacheSet *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->sidCacheSets = (sidCacheSet *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->sidCacheSets + cache->numSIDCacheSets);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->sidCacheData = (sidCacheEntry *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->sidCacheData = (sidCacheEntry *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->sidCacheData + cache->numSIDCacheEntries);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->certCacheData = (certCacheEntry *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->certCacheData = (certCacheEntry *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     cache->sidCacheSize =
+         (char *)cache->certCacheData - (char *)cache->sidCacheData;
+ 
+@@ -998,7 +1022,11 @@ InitCache(cacheDesc *cache, int maxCacheEntries, int maxCertCacheEntries,
+     ptr = (ptrdiff_t)(cache->certCacheData + cache->numCertCacheEntries);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->keyCacheData = (SSLWrappedSymWrappingKey *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->keyCacheData = (SSLWrappedSymWrappingKey *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     cache->certCacheSize =
+         (char *)cache->keyCacheData - (char *)cache->certCacheData;
+ 
+@@ -1006,26 +1034,50 @@ InitCache(cacheDesc *cache, int maxCacheEntries, int maxCertCacheEntries,
+     ptr = (ptrdiff_t)(cache->keyCacheData + cache->numKeyCacheEntries);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->keyCacheSize = (char *)(uintptr_t)ptr - (char *)cache->keyCacheData;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->keyCacheSize = (char *)ptr - (char *)cache->keyCacheData;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->ticketKeyNameSuffix = (PRUint8 *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->ticketKeyNameSuffix = (PRUint8 *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->ticketKeyNameSuffix +
+                       SELF_ENCRYPT_KEY_VAR_NAME_LEN);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->ticketEncKey = (encKeyCacheEntry *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->ticketEncKey = (encKeyCacheEntry *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->ticketEncKey + 1);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->ticketMacKey = (encKeyCacheEntry *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->ticketMacKey = (encKeyCacheEntry *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->ticketMacKey + 1);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->ticketKeysValid = (PRUint32 *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->ticketKeysValid = (PRUint32 *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     ptr = (ptrdiff_t)(cache->ticketKeysValid + 1);
+     ptr = SID_ROUNDUP(ptr, SID_ALIGNMENT);
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    cache->srvNameCacheData = (srvNameCacheEntry *)(uintptr_t)ptr;
++#else   // !__CHERI_PURE_CAPABIULITY__
+     cache->srvNameCacheData = (srvNameCacheEntry *)ptr;
++#endif  // !__CHERI_PURE_CAPABIULITY__
+     cache->srvNameCacheSize =
+         cache->numSrvNameCacheEntries * sizeof(srvNameCacheEntry);
+     ptr = (ptrdiff_t)(cache->srvNameCacheData + cache->numSrvNameCacheEntries);
+diff --git lib/util/secload.c lib/util/secload.c
+index 1cebae4e2..4ba5c540e 100644
+--- lib/util/secload.c
++++ lib/util/secload.c
+@@ -82,7 +82,7 @@ loader_LoadLibInReferenceDir(const char* referencePath, const char* name)
+ #endif
+             libSpec.type = PR_LibSpec_Pathname;
+             libSpec.value.pathname = fullName;
+-            dlh = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW | PR_LD_LOCAL
++            dlh = PR_LoadLibraryWithFlags(libSpec, PR_LD_LAZY | PR_LD_LOCAL
+ #ifdef PR_LD_ALT_SEARCH_PATH
+                                                        /* allow library's dependencies to be found in the same directory
+                                                         * on Windows even if PATH is not set. Requires NSPR 4.8.1 . */
+@@ -171,7 +171,7 @@ PORT_LoadLibraryFromOrigin(const char* existingShLibName,
+ #endif
+         libSpec.type = PR_LibSpec_Pathname;
+         libSpec.value.pathname = newShLibName;
+-        lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW | PR_LD_LOCAL);
++        lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_LAZY | PR_LD_LOCAL);
+     }
+     if (NULL == lib) {
+ #ifdef DEBUG_LOADER
+diff --git lib/util/secport.c lib/util/secport.c
+index fb5223d64..3334cc233 100644
+--- lib/util/secport.c
++++ lib/util/secport.c
+@@ -37,6 +37,11 @@
+ #include "wtypes.h"
+ #endif
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif
++
+ #define SET_ERROR_CODE /* place holder for code to set PR error code. */
+ 
+ #ifdef THREADMARK
+@@ -276,7 +281,11 @@ PORT_NewArena(unsigned long chunksize)
+         PORT_Free(pool);
+         return NULL;
+     }
++#if defined(__CHERI_PURE_CAPABILITY__)
++    PL_InitArenaPool(&pool->arena, "security", chunksize, alignof(max_align_t));
++#else
+     PL_InitArenaPool(&pool->arena, "security", chunksize, sizeof(double));
++#endif
+     return (&pool->arena);
+ }
+ 
+@@ -284,7 +293,11 @@ void
+ PORT_InitCheapArena(PORTCheapArenaPool *pool, unsigned long chunksize)
+ {
+     pool->magic = CHEAP_ARENAPOOL_MAGIC;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    PL_InitArenaPool(&pool->arena, "security", chunksize, alignof(max_align_t));
++#else
+     PL_InitArenaPool(&pool->arena, "security", chunksize, sizeof(double));
++#endif
+ }
+ 
+ void *
+diff --git tests/bogo/bogo.sh tests/bogo/bogo.sh
+index e96366516..05a6fdbbb 100755
+--- tests/bogo/bogo.sh
++++ tests/bogo/bogo.sh
+@@ -13,7 +13,7 @@
+ ########################################################################
+ 
+ # Currently used BorringSSL version
+-BOGO_VERSION=48f794765b0df3310649e6a6c6f71c5cd845f445
++BOGO_VERION=9501f0e8f333cfaaffdddba7e0184fb69a452919
+ 
+ bogo_init()
+ {
+@@ -27,7 +27,7 @@ bogo_init()
+   cd "${HOSTDIR}/bogo"
+   BORING=${BORING:=boringssl}
+   if [ ! -d "$BORING" ]; then
+-    git clone -q https://boringssl.googlesource.com/boringssl "$BORING"
++    git clone -q https://github.com/CTSRD-CHERI/boringssl "$BORING"
+     git -C "$BORING" checkout -q $BOGO_VERSION
+   fi
+ 
