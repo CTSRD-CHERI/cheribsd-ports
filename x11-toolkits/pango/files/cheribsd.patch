@@ -1,0 +1,159 @@
+diff --git pango/pango-language.c pango/pango-language.c
+index 410e6f98..a77b5587 100644
+--- pango/pango-language.c
++++ pango/pango-language.c
+@@ -292,7 +292,7 @@ pango_language_get_default (void)
+ {
+   static PangoLanguage *result = NULL; /* MT-safe */
+ 
+-  if (g_once_init_enter (&result))
++  if (g_once_init_enter_pointer (&result))
+     {
+       gchar *lc_ctype;
+       PangoLanguage *lang;
+@@ -301,7 +301,7 @@ pango_language_get_default (void)
+       lang = pango_language_from_string (lc_ctype);
+       g_free (lc_ctype);
+ 
+-      g_once_init_leave (&result, lang);
++      g_once_init_leave_pointer (&result, lang);
+     }
+ 
+   return result;
+diff --git pango/pango-ot-ruleset.c pango/pango-ot-ruleset.c
+index 0398d9e6..05aae020 100644
+--- pango/pango-ot-ruleset.c
++++ pango/pango-ot-ruleset.c
+@@ -87,8 +87,8 @@ pango_ot_ruleset_get_for_description (PangoOTInfo                     *info,
+ {
+   static PangoOTRuleset *ruleset; /* MT-safe */
+ 
+-  if (g_once_init_enter (&ruleset))
+-    g_once_init_leave (&ruleset, g_object_new (PANGO_TYPE_OT_RULESET, NULL));
++  if (g_once_init_enter_pointer (&ruleset))
++    g_once_init_leave_pointer (&ruleset, g_object_new (PANGO_TYPE_OT_RULESET, NULL));
+ 
+   return ruleset;
+ }
+diff --git pango/pango-utils.c pango/pango-utils.c
+index a78dcd35..e63c7ddb 100644
+--- pango/pango-utils.c
++++ pango/pango-utils.c
+@@ -602,7 +602,7 @@ pango_get_sysconf_subdirectory (void)
+ {
+   static const gchar *result = NULL; /* MT-safe */
+ 
+-  if (g_once_init_enter (&result))
++  if (g_once_init_enter_pointer (&result))
+     {
+       const char *tmp_result = NULL;
+       const char *sysconfdir = g_getenv ("PANGO_SYSCONFDIR");
+@@ -610,7 +610,7 @@ pango_get_sysconf_subdirectory (void)
+ 	tmp_result = g_build_filename (sysconfdir, "pango", NULL);
+       else
+ 	tmp_result = SYSCONFDIR "/pango";
+-      g_once_init_leave(&result, tmp_result);
++      g_once_init_leave_pointer(&result, tmp_result);
+     }
+   return result;
+ }
+@@ -631,7 +631,7 @@ pango_get_lib_subdirectory (void)
+ {
+   static const gchar *result = NULL; /* MT-safe */
+ 
+-  if (g_once_init_enter (&result))
++  if (g_once_init_enter_pointer (&result))
+     {
+       const gchar *tmp_result = NULL;
+       const char *libdir = g_getenv ("PANGO_LIBDIR");
+@@ -639,7 +639,7 @@ pango_get_lib_subdirectory (void)
+ 	tmp_result = g_build_filename (libdir, "pango", NULL);
+       else
+ 	tmp_result = LIBDIR "/pango";
+-      g_once_init_leave(&result, tmp_result);
++      g_once_init_leave_pointer(&result, tmp_result);
+     }
+   return result;
+ }
+diff --git pango/pangocairo-fcfont.c pango/pangocairo-fcfont.c
+index 02eefb69..361dbb10 100644
+--- pango/pangocairo-fcfont.c
++++ pango/pangocairo-fcfont.c
+@@ -210,8 +210,8 @@ get_gravity_class (void)
+ {
+   static GEnumClass *class = NULL; /* MT-safe */
+ 
+-  if (g_once_init_enter (&class))
+-    g_once_init_leave(&class, (gpointer)g_type_class_ref (PANGO_TYPE_GRAVITY));
++  if (g_once_init_enter_pointer (&class))
++    g_once_init_leave_pointer(&class, (gpointer)g_type_class_ref (PANGO_TYPE_GRAVITY));
+ 
+   return class;
+ }
+diff --git pango/pangofc-fontmap.c pango/pangofc-fontmap.c
+index 51f71cb1..e5689c3e 100644
+--- pango/pangofc-fontmap.c
++++ pango/pangofc-fontmap.c
+@@ -292,8 +292,8 @@ get_gravity_class (void)
+ {
+   static GEnumClass *class = NULL; /* MT-safe */
+ 
+-  if (g_once_init_enter (&class))
+-    g_once_init_leave (&class, (gpointer)g_type_class_ref (PANGO_TYPE_GRAVITY));
++  if (g_once_init_enter_pointer (&class))
++    g_once_init_leave_pointer (&class, (gpointer)g_type_class_ref (PANGO_TYPE_GRAVITY));
+ 
+   return class;
+ }
+diff --git pango/pangoft2-fontmap.c pango/pangoft2-fontmap.c
+index ca09a2ad..3ee447d8 100644
+--- pango/pangoft2-fontmap.c
++++ pango/pangoft2-fontmap.c
+@@ -292,8 +292,8 @@ G_GNUC_END_IGNORE_DEPRECATIONS
+ PangoFontMap *
+ pango_ft2_font_map_for_display (void)
+ {
+-  if (g_once_init_enter (&pango_ft2_global_fontmap))
+-    g_once_init_leave (&pango_ft2_global_fontmap, PANGO_FT2_FONT_MAP (pango_ft2_font_map_new ()));
++  if (g_once_init_enter_pointer (&pango_ft2_global_fontmap))
++    g_once_init_leave_pointer (&pango_ft2_global_fontmap, PANGO_FT2_FONT_MAP (pango_ft2_font_map_new ()));
+ 
+   return PANGO_FONT_MAP (pango_ft2_global_fontmap);
+ }
+diff --git pango/pangowin32-fontmap.c pango/pangowin32-fontmap.c
+index 8063c6f0..73ed6260 100644
+--- pango/pangowin32-fontmap.c
++++ pango/pangowin32-fontmap.c
+@@ -833,8 +833,8 @@ _pango_win32_font_map_class_init (PangoWin32FontMapClass *class)
+ PangoFontMap *
+ pango_win32_font_map_for_display (void)
+ {
+-  if (g_once_init_enter ((gsize*)&default_fontmap))
+-    g_once_init_leave((gsize*)&default_fontmap, (gsize)g_object_new (PANGO_TYPE_WIN32_FONT_MAP, NULL));
++  if (g_once_init_enter_pointer ((gsize*)&default_fontmap))
++    g_once_init_leave_pointer((gsize*)&default_fontmap, (gsize)g_object_new (PANGO_TYPE_WIN32_FONT_MAP, NULL));
+ 
+   return PANGO_FONT_MAP (default_fontmap);
+ }
+diff --git pango/shape.c pango/shape.c
+index acf4be59..73dc505e 100644
+--- pango/shape.c
++++ pango/shape.c
+@@ -240,7 +240,7 @@ pango_font_get_hb_font_for_context (PangoFont           *font,
+ 
+   hb_font = pango_font_get_hb_font (font);
+ 
+-  if (G_UNLIKELY (g_once_init_enter (&funcs)))
++  if (G_UNLIKELY (g_once_init_enter_pointer (&funcs)))
+     {
+       hb_font_funcs_t *f = hb_font_funcs_create ();
+ 
+@@ -250,7 +250,7 @@ pango_font_get_hb_font_for_context (PangoFont           *font,
+       hb_font_funcs_set_glyph_extents_func (f, pango_hb_font_get_glyph_extents, NULL, NULL);
+ 
+       hb_font_funcs_make_immutable (f);
+-      g_once_init_leave (&funcs, f);
++      g_once_init_leave_pointer (&funcs, f);
+     }
+ 
+   context->font = font;
