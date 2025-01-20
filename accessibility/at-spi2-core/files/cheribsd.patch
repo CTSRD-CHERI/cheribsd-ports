@@ -1,0 +1,59 @@
+diff --git atk/atk-enum-types.c.template atk/atk-enum-types.c.template
+index dc2cae9f..cbf4bdab 100644
+--- atk/atk-enum-types.c.template
++++ atk/atk-enum-types.c.template
+@@ -15,9 +15,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile;
++  static GType g_define_type_id__volatile;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -31,7 +31,7 @@ GType
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+   return g_define_type_id__volatile;
+ }
+diff --git atk/atkutil.h atk/atkutil.h
+index 844fe2a1..04704408 100644
+--- atk/atkutil.h
++++ atk/atkutil.h
+@@ -329,8 +329,8 @@ const gchar *atk_get_version (void);
+   GType                                                                                    \
+       type_name##_get_type (void)                                                          \
+   {                                                                                        \
+-    static volatile gsize g_define_type_id__volatile = 0;                                  \
+-    if (g_once_init_enter (&g_define_type_id__volatile))                                   \
++    static volatile GType g_define_type_id__volatile = 0;                                  \
++    if (g_once_init_enter_pointer (&g_define_type_id__volatile))                           \
+       {                                                                                    \
+         AtkObjectFactory *factory;                                                         \
+         GType derived_type;                                                                \
+@@ -354,12 +354,12 @@ const gchar *atk_get_version (void);
+                                            (GInstanceInitFunc) type_name##_init,           \
+                                            (GTypeFlags) flags);                            \
+         { /* custom code follows */
+-#define _ATK_DEFINE_TYPE_EXTENDED_END()                              \
+-  /* following custom code */                                        \
+-  }                                                                  \
+-  g_once_init_leave (&g_define_type_id__volatile, g_define_type_id); \
+-  }                                                                  \
+-  return g_define_type_id__volatile;                                 \
++#define _ATK_DEFINE_TYPE_EXTENDED_END()                                      \
++  /* following custom code */                                                \
++  }                                                                          \
++  g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id); \
++  }                                                                          \
++  return g_define_type_id__volatile;                                         \
+   } /* closes type_name##_get_type() */
+ 
+ G_END_DECLS

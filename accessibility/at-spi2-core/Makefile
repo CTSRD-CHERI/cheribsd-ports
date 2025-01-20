@@ -30,6 +30,12 @@ X11_USES=		xorg
 X11_USE=		XORG=x11,xi,xtst
 X11_MESON_ENABLED=	x11
 
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+introspection_MESON_ARG=          disabled
+.endif
+
 post-install:
 	${RM} -r ${STAGEDIR}${PREFIX}/lib/systemd
 
