@@ -67,8 +67,8 @@ include/atk-1.0/atk/atkutil.h
 include/atk-1.0/atk/atkvalue.h
 include/atk-1.0/atk/atkversion.h
 include/atk-1.0/atk/atkwindow.h
-lib/girepository-1.0/Atk-1.0.typelib
-%%NO_ATKONLY%%lib/girepository-1.0/Atspi-2.0.typelib
+%%GIR%%lib/girepository-1.0/Atk-1.0.typelib
+%%GIR%%%%NO_ATKONLY%%lib/girepository-1.0/Atspi-2.0.typelib
 %%NO_ATKONLY%%lib/gnome-settings-daemon-3.0/gtk-modules/at-spi2-atk.desktop
 %%NO_ATKONLY%%lib/gtk-2.0/modules/libatk-bridge.so
 lib/libatk-1.0.so
@@ -88,8 +88,8 @@ libdata/pkgconfig/atk.pc
 %%NO_ATKONLY%%share/dbus-1/accessibility-services/org.a11y.atspi.Registry.service
 %%NO_ATKONLY%%share/dbus-1/services/org.a11y.Bus.service
 %%NO_ATKONLY%%share/defaults/at-spi2/accessibility.conf
-share/gir-1.0/Atk-1.0.gir
-%%NO_ATKONLY%%share/gir-1.0/Atspi-2.0.gir
+%%GIR%%share/gir-1.0/Atk-1.0.gir
+%%GIR%%%%NO_ATKONLY%%share/gir-1.0/Atspi-2.0.gir
 share/locale/ab/LC_MESSAGES/at-spi2-core.mo
 share/locale/af/LC_MESSAGES/at-spi2-core.mo
 share/locale/am/LC_MESSAGES/at-spi2-core.mo
