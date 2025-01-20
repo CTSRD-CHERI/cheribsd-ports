@@ -1,0 +1,81 @@
+diff --git src/cairo-atomic-private.h src/cairo-atomic-private.h
+index 46761856f..a6ba21310 100644
+--- src/cairo-atomic-private.h
++++ src/cairo-atomic-private.h
+@@ -46,6 +46,9 @@
+ #endif
+ 
+ #include <assert.h>
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdint.h>
++#endif // defined(__CHERI_PURE_CAPABILITY__)
+ 
+ /* The autoconf on OpenBSD 4.5 produces the malformed constant name
+  * SIZEOF_VOID__ rather than SIZEOF_VOID_P.  Work around that here. */
+@@ -105,6 +108,8 @@ typedef int cairo_atomic_intptr_t;
+ typedef long cairo_atomic_intptr_t;
+ #elif SIZEOF_VOID_P==SIZEOF_LONG_LONG
+ typedef long long cairo_atomic_intptr_t;
++#elif defined(__CHERI_PURE_CAPABILITY__)
++typedef intptr_t cairo_atomic_intptr_t;
+ #else
+ #error No matching integer pointer type
+ #endif
+@@ -201,6 +206,8 @@ typedef int cairo_atomic_intptr_t;
+ typedef long cairo_atomic_intptr_t;
+ #elif SIZEOF_VOID_P==SIZEOF_LONG_LONG
+ typedef long long cairo_atomic_intptr_t;
++#elif defined(__CHERI_PURE_CAPABILITY__)
++typedef intptr_t cairo_atomic_intptr_t;
+ #else
+ #error No matching integer pointer type
+ #endif
+@@ -235,6 +242,8 @@ typedef unsigned int cairo_atomic_intptr_t;
+ typedef unsigned long cairo_atomic_intptr_t;
+ #elif SIZEOF_VOID_P==SIZEOF_LONG_LONG
+ typedef unsigned long long cairo_atomic_intptr_t;
++#elif defined(__CHERI_PURE_CAPABILITY__)
++typedef intptr_t cairo_atomic_intptr_t;
+ #else
+ #error No matching integer pointer type
+ #endif
+@@ -287,6 +296,8 @@ typedef unsigned int cairo_atomic_intptr_t;
+ typedef unsigned long cairo_atomic_intptr_t;
+ #elif SIZEOF_VOID_P==SIZEOF_LONG_LONG
+ typedef unsigned long long cairo_atomic_intptr_t;
++#elif defined(__CHERI_PURE_CAPABILITY__)
++typedef intptr_t cairo_atomic_intptr_t;
+ #else
+ #error No matching integer pointer type
+ #endif
+diff --git src/cairo-atomic.c src/cairo-atomic.c
+index 2af50cd38..234c77bb8 100644
+--- src/cairo-atomic.c
++++ src/cairo-atomic.c
+@@ -37,9 +37,13 @@
+ #include "cairo-mutex-private.h"
+ 
+ #ifdef HAS_ATOMIC_OPS
++#if defined(__CHERI_PURE_CAPABILITY__)
++COMPILE_TIME_ASSERT(sizeof(void*) == sizeof(intptr_t));
++#else // defined(__CHERI_PURE_CAPABILITY__)
+ COMPILE_TIME_ASSERT(sizeof(void*) == sizeof(int) ||
+ 		    sizeof(void*) == sizeof(long) ||
+ 		    sizeof(void*) == sizeof(long long));
++#endif // defined(__CHERI_PURE_CAPABILITY__)
+ #else
+ void
+ _cairo_atomic_int_inc (cairo_atomic_intptr_t *x)
+diff --git util/cairo-trace/trace.c util/cairo-trace/trace.c
+index 26ed2e506..5426d683b 100644
+--- util/cairo-trace/trace.c
++++ util/cairo-trace/trace.c
+@@ -135,6 +135,8 @@ static void *_dlhandle = RTLD_NEXT;
+ #define PTR_SHIFT 2
+ #elif SIZEOF_VOID_P == 8
+ #define PTR_SHIFT 3
++#elif SIZEOF_VOID_P ==  16
++#define PTR_SHIFT 4
+ #else
+ #error Unexpected pointer size
+ #endif
