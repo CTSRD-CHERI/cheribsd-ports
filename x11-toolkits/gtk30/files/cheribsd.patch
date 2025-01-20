@@ -1,0 +1,141 @@
+diff --git gtk/gtkcssstylefuncs.c gtk/gtkcssstylefuncs.c
+index 466863114a..086e999f50 100644
+--- gtk/gtkcssstylefuncs.c
++++ gtk/gtkcssstylefuncs.c
+@@ -67,11 +67,11 @@ register_conversion_function (GType               type,
+                               GtkStyleComputeFunc compute)
+ {
+   if (parse)
+-    g_hash_table_insert (parse_funcs, GSIZE_TO_POINTER (type), parse);
++    g_hash_table_insert (parse_funcs, GTYPE_TO_POINTER (type), parse);
+   if (print)
+-    g_hash_table_insert (print_funcs, GSIZE_TO_POINTER (type), print);
++    g_hash_table_insert (print_funcs, GTYPE_TO_POINTER (type), print);
+   if (compute)
+-    g_hash_table_insert (compute_funcs, GSIZE_TO_POINTER (type), compute);
++    g_hash_table_insert (compute_funcs, GTYPE_TO_POINTER (type), compute);
+ }
+ 
+ static void
+@@ -1082,10 +1082,10 @@ _gtk_css_style_funcs_parse_value (GValue       *value,
+   gtk_css_style_funcs_init ();
+ 
+   func = g_hash_table_lookup (parse_funcs,
+-                              GSIZE_TO_POINTER (G_VALUE_TYPE (value)));
++                              GTYPE_TO_POINTER (G_VALUE_TYPE (value)));
+   if (func == NULL)
+     func = g_hash_table_lookup (parse_funcs,
+-                                GSIZE_TO_POINTER (g_type_fundamental (G_VALUE_TYPE (value))));
++                                GTYPE_TO_POINTER (g_type_fundamental (G_VALUE_TYPE (value))));
+ 
+   if (func == NULL)
+     {
+@@ -1115,10 +1115,10 @@ _gtk_css_style_funcs_print_value (const GValue *value,
+   gtk_css_style_funcs_init ();
+ 
+   func = g_hash_table_lookup (print_funcs,
+-                              GSIZE_TO_POINTER (G_VALUE_TYPE (value)));
++                              GTYPE_TO_POINTER (G_VALUE_TYPE (value)));
+   if (func == NULL)
+     func = g_hash_table_lookup (print_funcs,
+-                                GSIZE_TO_POINTER (g_type_fundamental (G_VALUE_TYPE (value))));
++                                GTYPE_TO_POINTER (g_type_fundamental (G_VALUE_TYPE (value))));
+ 
+   if (func == NULL)
+     {
+@@ -1162,10 +1162,10 @@ _gtk_css_style_funcs_compute_value (GtkStyleProviderPrivate *provider,
+   gtk_css_style_funcs_init ();
+ 
+   func = g_hash_table_lookup (compute_funcs,
+-                              GSIZE_TO_POINTER (target_type));
++                              GTYPE_TO_POINTER (target_type));
+   if (func == NULL)
+     func = g_hash_table_lookup (compute_funcs,
+-                                GSIZE_TO_POINTER (g_type_fundamental (target_type)));
++                                GTYPE_TO_POINTER (g_type_fundamental (target_type)));
+ 
+   if (func)
+     return func (provider, style, parent_style, specified);
+diff --git gtk/gtkwidget.c gtk/gtkwidget.c
+index b6e00115bb..10b7c1d3ba 100644
+--- gtk/gtkwidget.c
++++ gtk/gtkwidget.c
+@@ -16916,7 +16916,7 @@ get_auto_child_hash (GtkWidget *widget,
+     }
+ 
+   auto_child_hash =
+-    g_hash_table_lookup (auto_children, GSIZE_TO_POINTER (type));
++    g_hash_table_lookup (auto_children, GTYPE_TO_POINTER (type));
+ 
+   if (!auto_child_hash && create)
+     {
+@@ -16926,7 +16926,7 @@ get_auto_child_hash (GtkWidget *widget,
+ 					       (GDestroyNotify)g_object_unref);
+ 
+       g_hash_table_insert (auto_children,
+-			   GSIZE_TO_POINTER (type),
++			   GTYPE_TO_POINTER (type),
+ 			   auto_child_hash);
+     }
+ 
+diff --git gtk/inspector/signals-list.c gtk/inspector/signals-list.c
+index 523856eac5..250f50caf9 100644
+--- gtk/inspector/signals-list.c
++++ gtk/inspector/signals-list.c
+@@ -76,10 +76,10 @@ get_types (GObject *object, guint *length)
+   type = ((GTypeInstance*)object)->g_class->g_type;
+   while (type)
+     {
+-      g_hash_table_add (seen, GSIZE_TO_POINTER (type));
++      g_hash_table_add (seen, GTYPE_TO_POINTER (type));
+       iface = g_type_interfaces (type, NULL);
+       for (i = 0; iface[i]; i++)
+-        g_hash_table_add (seen, GSIZE_TO_POINTER (iface[i]));
++        g_hash_table_add (seen, GTYPE_TO_POINTER (iface[i]));
+       g_free (iface);
+       type = g_type_parent (type);
+     }
+diff --git gtk/inspector/statistics.c gtk/inspector/statistics.c
+index 42b315c49d..403ceaba0d 100644
+--- gtk/inspector/statistics.c
++++ gtk/inspector/statistics.c
+@@ -93,7 +93,7 @@ add_type_count (GtkInspectorStatistics *sl, GType type)
+   for (i = 0; i < n_children; i++)
+     cumulative += add_type_count (sl, children[i]);
+ 
+-  data = g_hash_table_lookup (sl->priv->counts, GSIZE_TO_POINTER (type));
++  data = g_hash_table_lookup (sl->priv->counts, GTYPE_TO_POINTER (type));
+   if (!data)
+     {
+       data = g_new0 (TypeData, 1);
+@@ -107,7 +107,7 @@ add_type_count (GtkInspectorStatistics *sl, GType type)
+                           COLUMN_SELF_DATA, data->self,
+                           COLUMN_CUMULATIVE_DATA, data->cumulative,
+                           -1);
+-      g_hash_table_insert (sl->priv->counts, GSIZE_TO_POINTER (type), data);
++      g_hash_table_insert (sl->priv->counts, GTYPE_TO_POINTER (type), data);
+     }
+ 
+   self = g_type_get_instance_count (type);
+diff --git testsuite/gtk/objects-finalize.c testsuite/gtk/objects-finalize.c
+index 24540e313f..338d5c9564 100644
+--- testsuite/gtk/objects-finalize.c
++++ testsuite/gtk/objects-finalize.c
+@@ -49,7 +49,7 @@ check_finalized (gpointer data,
+ static void
+ test_finalize_object (gconstpointer data)
+ {
+-  GType test_type = GPOINTER_TO_SIZE (data);
++  GType test_type = GPOINTER_TO_TYPE (data);
+   GObject *object;
+ 
+   object = g_object_new (test_type, NULL);
+@@ -125,7 +125,7 @@ main (int argc, char **argv)
+ 	{
+ 	  gchar *test_path = g_strdup_printf ("/FinalizeObject/%s", g_type_name (all_types[i]));
+ 
+-	  g_test_add_data_func (test_path, GSIZE_TO_POINTER (all_types[i]), test_finalize_object);
++	  g_test_add_data_func (test_path, GTYPE_TO_POINTER (all_types[i]), test_finalize_object);
+ 
+ 	  g_free (test_path);
+ 	}
