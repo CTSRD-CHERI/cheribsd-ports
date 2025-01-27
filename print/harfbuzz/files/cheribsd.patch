@@ -1,0 +1,78 @@
+diff --git src/hb-algs.hh src/hb-algs.hh
+index 6cabc7fb0..2e0d06ce8 100644
+--- src/hb-algs.hh
++++ src/hb-algs.hh
+@@ -1302,7 +1302,7 @@ static inline void
+ hb_qsort (void *base, size_t nel, size_t width,
+ 	  int (*compar)(const void *_a, const void *_b))
+ {
+-#if defined(__OPTIMIZE_SIZE__) && !defined(HB_USE_INTERNAL_QSORT)
++#if defined(__CHERI_PURE_CAPABILITY__) || (defined(__OPTIMIZE_SIZE__) && !defined(HB_USE_INTERNAL_QSORT))
+   qsort (base, nel, width, compar);
+ #else
+   sort_r_simple (base, nel, width, compar);
+diff --git src/hb-blob.cc src/hb-blob.cc
+index 265effba0..39dcfaf99 100644
+--- src/hb-blob.cc
++++ src/hb-blob.cc
+@@ -415,18 +415,18 @@ bool
+ hb_blob_t::try_make_writable_inplace_unix ()
+ {
+ #if defined(HAVE_SYS_MMAN_H) && defined(HAVE_MPROTECT)
+-  uintptr_t pagesize = -1, mask, length;
++  size_t pagesize = -1, mask, length;
+   const char *addr;
+ 
+ #if defined(HAVE_SYSCONF) && defined(_SC_PAGE_SIZE)
+-  pagesize = (uintptr_t) sysconf (_SC_PAGE_SIZE);
++  pagesize = (size_t ) sysconf (_SC_PAGE_SIZE);
+ #elif defined(HAVE_SYSCONF) && defined(_SC_PAGESIZE)
+-  pagesize = (uintptr_t) sysconf (_SC_PAGESIZE);
++  pagesize = (size_t ) sysconf (_SC_PAGESIZE);
+ #elif defined(HAVE_GETPAGESIZE)
+-  pagesize = (uintptr_t) getpagesize ();
++  pagesize = (size_t ) getpagesize ();
+ #endif
+ 
+-  if ((uintptr_t) -1L == pagesize) {
++  if ((size_t) -1L == pagesize) {
+     DEBUG_MSG_FUNC (BLOB, this, "failed to get pagesize: %s", strerror (errno));
+     return false;
+   }
+diff --git src/hb-null.hh src/hb-null.hh
+index 6796906ba..9a91c585d 100644
+--- src/hb-null.hh
++++ src/hb-null.hh
+@@ -104,7 +104,7 @@ using hb_min_size = _hb_min_size<T, void>;
+  */
+ 
+ extern HB_INTERNAL
+-uint64_t const _hb_NullPool[(HB_NULL_POOL_SIZE + sizeof (uint64_t) - 1) / sizeof (uint64_t)];
++uintptr_t const _hb_NullPool[(HB_NULL_POOL_SIZE + sizeof (uintptr_t) - 1) / sizeof (uintptr_t)];
+ 
+ /* Generic nul-content Null objects. */
+ template <typename Type>
+@@ -169,7 +169,7 @@ struct NullHelper
+  * causing bad memory access. So, races there are not actually introducing incorrectness
+  * in the code. Has ~12kb binary size overhead to have it, also clang build fails with it. */
+ extern HB_INTERNAL
+-/*thread_local*/ uint64_t _hb_CrapPool[(HB_NULL_POOL_SIZE + sizeof (uint64_t) - 1) / sizeof (uint64_t)];
++/*thread_local*/ uintptr_t _hb_CrapPool[(HB_NULL_POOL_SIZE + sizeof (uintptr_t) - 1) / sizeof (uintptr_t)];
+ 
+ /* CRAP pool: Common Region for Access Protection. */
+ template <typename Type>
+diff --git src/hb-static.cc src/hb-static.cc
+index c9bd0a61b..b2fee30e6 100644
+--- src/hb-static.cc
++++ src/hb-static.cc
+@@ -43,8 +43,8 @@
+ #ifndef HB_NO_VISIBILITY
+ #include "hb-ot-name-language-static.hh"
+ 
+-uint64_t const _hb_NullPool[(HB_NULL_POOL_SIZE + sizeof (uint64_t) - 1) / sizeof (uint64_t)] = {};
+-/*thread_local*/ uint64_t _hb_CrapPool[(HB_NULL_POOL_SIZE + sizeof (uint64_t) - 1) / sizeof (uint64_t)] = {};
++uintptr_t const _hb_NullPool[(HB_NULL_POOL_SIZE + sizeof (uintptr_t) - 1) / sizeof (uintptr_t)] = {};
++/*thread_local*/ uintptr_t _hb_CrapPool[(HB_NULL_POOL_SIZE + sizeof (uintptr_t) - 1) / sizeof (uintptr_t)] = {};
+ 
+ DEFINE_NULL_NAMESPACE_BYTES (OT, Index) =  {0xFF,0xFF};
+ DEFINE_NULL_NAMESPACE_BYTES (OT, VarIdx) =  {0xFF,0xFF,0xFF,0xFF};
