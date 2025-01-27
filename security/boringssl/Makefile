@@ -21,6 +21,8 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 USES=		cmake:insource cpe go:no_targets localbase perl5
 
+USE_GO=		pkg64
+
 CONFLICTS_INSTALL=	libressl libressl-devel \
 			openssl openssl3[01] openssl-quictls
 
@@ -36,6 +38,12 @@ LDFLAGS+=	-Wl,-rpath,${LOCALBASE}/lib
 TEST_TARGET=	run_tests
 MAKE_ENV+=	GOFLAGS=-mod=readonly \
 		GOPROXY=file://${DISTDIR}
+
+.include <bsd.port.options.mk>
+
+.if ${ABI:Mpurecap}
+CMAKE_ARGS+=	-DOPENSSL_NO_ASM=1
+.endif
 
 do-install:
 	${INSTALL_PROGRAM} ${WRKSRC}/tool/bssl ${STAGEDIR}${PREFIX}/bin/

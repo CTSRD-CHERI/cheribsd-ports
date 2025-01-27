@@ -1,0 +1,51 @@
+diff --git crypto/cipher_extra/internal.h crypto/cipher_extra/internal.h
+index 39ab950fe..02bb60047 100644
+--- crypto/cipher_extra/internal.h
++++ crypto/cipher_extra/internal.h
+@@ -176,7 +176,13 @@ union chacha20_poly1305_seal_data {
+ 
+ static_assert(sizeof(union chacha20_poly1305_open_data) == 48,
+               "wrong chacha20_poly1305_open_data size");
++#if defined(__CHERI_PURE_CAPABILITY__)
++// Adjust expected size of union chacha20_poly1305_seal_data for the
++// wider and stronger alignment requirements of capabilities.
++static_assert(sizeof(union chacha20_poly1305_seal_data) == 48 + 16 + 8 + 8,
++#else // defined(__CHERI_PURE_CAPABILITY__)
+ static_assert(sizeof(union chacha20_poly1305_seal_data) == 48 + 8 + 8,
++#endif // defined(__CHERI_PURE_CAPABILITY__)
+               "wrong chacha20_poly1305_seal_data size");
+ 
+ OPENSSL_INLINE int chacha20_poly1305_asm_capable(void) {
+diff --git crypto/mem.c crypto/mem.c
+index 89832fce5..519b41ea7 100644
+--- crypto/mem.c
++++ crypto/mem.c
+@@ -80,7 +80,11 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
+ #include "internal.h"
+ 
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define OPENSSL_MALLOC_PREFIX sizeof(max_align_t)
++#else // defined(__CHERI_PURE_CAPABILITY__)
+ #define OPENSSL_MALLOC_PREFIX 8
++#endif //  defined(__CHERI_PURE_CAPABILITY__)
+ static_assert(OPENSSL_MALLOC_PREFIX >= sizeof(size_t), "size_t too large");
+ 
+ #if defined(OPENSSL_ASAN)
+diff --git include/openssl/aead.h include/openssl/aead.h
+index 376bff17a..39a47a27b 100644
+--- include/openssl/aead.h
++++ include/openssl/aead.h
+@@ -210,7 +210,12 @@ OPENSSL_EXPORT size_t EVP_AEAD_max_tag_len(const EVP_AEAD *aead);
+ // AEAD operations.
+ 
+ union evp_aead_ctx_st_state {
++#if defined(__CHERI_PURE_CAPABILITY__)
++  uint8_t opaque[800];
++  max_align_t max_alignment;
++#else // defined(__CHERI_PURE_CAPABILITY__)
+   uint8_t opaque[564];
++#endif // defined(__CHERI_PURE_CAPABILITY__)
+   uint64_t alignment;
+ };
+ 
