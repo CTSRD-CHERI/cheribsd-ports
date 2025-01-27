@@ -1,3 +1,27 @@
+diff --git atk-adaptor/adaptors/collection-adaptor.c atk-adaptor/adaptors/collection-adaptor.c
+index 8cd99304..df65c0c5 100644
+--- atk-adaptor/adaptors/collection-adaptor.c
++++ atk-adaptor/adaptors/collection-adaptor.c
+@@ -23,6 +23,7 @@
+ /* collection.c: implements the Collection interface */
+ 
+ #include <string.h>
++#include <strings.h>
+ 
+ #include "bridge.h"
+ #include <atk/atk.h>
+diff --git atk-adaptor/bridge.c atk-adaptor/bridge.c
+index a2b1de83..6719b694 100644
+--- atk-adaptor/bridge.c
++++ atk-adaptor/bridge.c
+@@ -30,6 +30,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strings.h>
+ #include <sys/stat.h>
+ #include <unistd.h>
+ 
 diff --git atk/atk-enum-types.c.template atk/atk-enum-types.c.template
 index dc2cae9f..cbf4bdab 100644
 --- atk/atk-enum-types.c.template
@@ -57,3 +81,16 @@ index 844fe2a1..04704408 100644
    } /* closes type_name##_get_type() */
  
  G_END_DECLS
+diff --git meson.build meson.build
+index aff697b3..5fc6e457 100644
+--- meson.build
++++ meson.build
+@@ -8,7 +8,7 @@ project('at-spi2-core', 'c',
+         ],
+         meson_version: '>= 0.63.0')
+ 
+-add_project_arguments([ '-D_POSIX_C_SOURCE=200809L', '-D_DEFAULT_SOURCE' ], language: 'c')
++add_project_arguments([ '-D_XOPEN_SOURCE=700', '-D_DEFAULT_SOURCE' ], language: 'c')
+ 
+ fs = import('fs')
+ 
