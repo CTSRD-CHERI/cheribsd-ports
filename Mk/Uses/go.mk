@@ -106,8 +106,8 @@ GO_TESTFLAGS+=	-buildvcs=false
 .  endif
 
 CGO_ENABLED?=	1
-CGO_CFLAGS+=	-I${LOCALBASE}/include
-CGO_LDFLAGS+=	-L${LOCALBASE}/lib
+CGO_CFLAGS+=	-I${GO_LOCALBASE}/include
+CGO_LDFLAGS+=	-L${GO_LOCALBASE}/lib
 
 .  if ${ARCH} == armv6 || ${ARCH} == armv7
 GOARM?=		${ARCH:C/armv//}
@@ -118,7 +118,12 @@ GO_GOSUMDB?=	sum.golang.org
 
 # Read-only variables
 
-GO_CMD=		${LOCALBASE}/bin/go${GO_SUFFIX}
+.  if ${USE_GO:Mpkg64}
+GO_LOCALBASE=	${LOCALBASE64}
+.  else
+GO_LOCALBASE=	${LOCALBASE}
+.  endif
+GO_CMD=		${GO_LOCALBASE}/bin/go${GO_SUFFIX}
 GO_WRKDIR_BIN=	${WRKDIR}/bin
 GO_ENV+=	CGO_ENABLED=${CGO_ENABLED} \
 		CGO_CFLAGS="${CGO_CFLAGS}" \
