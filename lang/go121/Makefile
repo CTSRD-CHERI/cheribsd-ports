@@ -7,6 +7,9 @@ MASTER_SITES=	https://golang.org/dl/ \
 DISTFILES=	go${DISTVERSION}.src.tar.gz \
 		go-${OPSYS:tl}-${GOARCH_${ARCH}}${GOARM_${ARCH}}-${BOOTSTRAP_TAG}.tar.xz:bootstrap
 
+BROKEN_purecap=	Does not build for CheriABI
+USE_PKG64=	1
+
 # Avoid conflicting patch files
 PATCHFILES=
 
