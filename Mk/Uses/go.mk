@@ -58,6 +58,8 @@
 .if !defined(_INCLUDE_USES_GO_MK)
 _INCLUDE_USES_GO_MK=	yes
 
+USE_GO?=
+
 # When adding a version, please keep the comment in
 # Mk/bsd.default-versions.mk in sync.
 GO_VALID_VERSIONS=	1.18 1.19 1.20 1.21 1.21-devel
