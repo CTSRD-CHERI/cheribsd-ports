@@ -14,6 +14,8 @@ LICENSE_NAME=	mosml
 LICENSE_TEXT=	Restrictions on for-profit distribution
 LICENSE_PERMS=	auto-accept
 
+BROKEN_aarch64=		does not build: "Something went wrong during endianness determination"
+BROKEN_aarch64c=	does not build: "Something went wrong during endianness determination"
 BROKEN_mips=		does not configure: this architecture seems to be neither big endian nor little endian
 BROKEN_mips64=		does not configure: this architecture seems to be neither big endian nor little endian
 BROKEN_powerpc64=	does not configure: this architecture seems to be neither big endian nor little endian
