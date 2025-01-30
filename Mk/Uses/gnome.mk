@@ -324,6 +324,8 @@ ${component}_USE_GNOME_IMPL+=${${subcomponent}_USE_GNOME_IMPL}
 USE_GNOME:=	${USE_GNOME:Nintrospection\:build}
 .    if ${USES:Mmeson}
 introspection_MESON_ARG?=	false
+.    elif defined(GNU_CONFIGURE)
+CONFIGURE_ARGS+=			--disable-introspection
 .    endif
 .  endif
 .  if defined(introspection_MESON_ARG)
