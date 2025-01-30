@@ -8,9 +8,6 @@ PKGNAMESUFFIX=	-${FLAVOR}
 MAINTAINER=	brooks@FreeBSD.org
 COMMENT=	Install symlinks for llvm toolchain in ${PREFIX}
 
-LICENSE=	BSD2CLAUSE
-LICENSE_FILE=	${FILESDIR}/LICENSE.ETC
-
 FLAVORS=	base localbase
 FLAVOR?=	${FLAVORS:[1]}
 
@@ -25,26 +22,33 @@ PREFIX=		/usr
 .endif
 
 NO_ARCH=	yes
+NO_BUILD=	yes
 
-SUB_FILES=	wrapper.sh
-
-COMMANDS=	cc c++ cpp ld objdump
+COMMAND_PAIRS= \
+	cc clang \
+	c++ clang++ \
+	cpp clang-cpp \
+	ld ld.lld \
+	objdump llvm-objdump
 .if ${FLAVOR:Mbase}
-# Conflicts with devel/llvm in localbase flavor
-COMMANDS+=	ld.lld
+# Also link in the LLVM names for the base flavor
+COMMAND_LINKS=	clang clang++ clang-cpp ld.lld
 .endif
+COMMANDS=${COMMAND_LINKS}
+.for c t in ${COMMAND_PAIRS}
+COMMANDS+= ${c}
+.endfor
 
 PLIST_FILES=	${COMMANDS:S|^|bin/|}
 
 .include <bsd.port.pre.mk>
 
-do-build:
-	# Do nothing, we can't use DO_BUILD becaue we need SUB_FILES
-
 do-install:
-.for c in ${COMMANDS}
-	${INSTALL_SCRIPT} ${WRKDIR}/wrapper.sh \
-	    ${STAGEDIR}${PREFIX}/bin/${c}
+.for c t in ${COMMAND_PAIRS}
+	${LN} -s ${LOCALBASE}/bin/${t} ${STAGEDIR}${PREFIX}/bin/${c}
+.endfor
+.for c in ${COMMAND_LINKS}
+	${LN} -s ${LOCALBASE}/bin/${c} ${STAGEDIR}${PREFIX}/bin/${c}
 .endfor
 
 .include <bsd.port.mk>
