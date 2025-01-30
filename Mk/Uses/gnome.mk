@@ -330,13 +330,11 @@ CONFIGURE_ARGS+=			--disable-introspection
 .  endif
 .  if defined(introspection_MESON_ARG)
 MESON_ARGS+=	-Dintrospection=${introspection_MESON_ARG}
-.    if ${introspection_MESON_ARG} == "false" || ${introspection_MESON_ARG} == "disabled"
-PLIST_SUB+=	GIR="@comment "
-.    else
+.  endif
+.  if ${USE_GNOME:Mintrospection\:build}
 PLIST_SUB+=	GIR=""
-.    endif
 .  else
-PLIST_SUB+=	GIR=""
+PLIST_SUB+=	GIR="@comment "
 .  endif
 
 # Then use already expanded USE_GNOME_IMPL to expand USE_GNOME.
