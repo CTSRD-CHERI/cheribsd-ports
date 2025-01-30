@@ -22,6 +22,7 @@ USE_GNOME=	glib20 introspection:build
 OPTIONS_DEFINE=		DOCS VAPI
 OPTIONS_DEFAULT=	DOCS VAPI
 OPTIONS_SUB=		yes
+OPTIONS_EXCLUDE_purecap=	VAPI
 
 DOCS_BUILD_DEPENDS=	gtk-doc>0:textproc/gtk-doc
 DOCS_MESON_TRUE=	docs
