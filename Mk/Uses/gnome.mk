@@ -333,7 +333,7 @@ PLIST_SUB+=	GIR="@comment "
 PLIST_SUB+=	GIR=""
 .          endif
 .        endif
-.      elif ${GNU_CONFIGURE}
+.      elif defined(GNU_CONFIGURE)
 CONFIGURE_ARGS+=        --disable-introspection
 PLIST_SUB+=	GIR="@comment "
 .      endif
