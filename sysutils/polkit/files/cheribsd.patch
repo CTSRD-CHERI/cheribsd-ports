@@ -1,0 +1,25 @@
+diff --git src/polkit/polkitidentity.c src/polkit/polkitidentity.c
+index 793f17d..8e92f55 100644
+--- src/polkit/polkitidentity.c
++++ src/polkit/polkitidentity.c
+@@ -49,9 +49,9 @@ base_init (gpointer g_iface)
+ GType
+ polkit_identity_get_type (void)
+ {
+-  static volatile gsize g_define_type_id__volatile = 0;
++  static volatile GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const GTypeInfo info =
+       {
+@@ -71,7 +71,7 @@ polkit_identity_get_type (void)
+         g_type_register_static (G_TYPE_INTERFACE, "PolkitIdentity", &info, 0);
+ 
+       g_type_interface_add_prerequisite (iface_type, G_TYPE_OBJECT);
+-      g_once_init_leave (&g_define_type_id__volatile, iface_type);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, iface_type);
+     }
+ 
+   return g_define_type_id__volatile;
