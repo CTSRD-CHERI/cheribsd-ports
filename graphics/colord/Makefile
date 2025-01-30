@@ -38,7 +38,8 @@ GLIB_SCHEMAS=	org.freedesktop.ColorHelper.gschema.xml
 OPTIONS_SUB=	yes
 OPTIONS_DEFINE=	DOCS COMPLETION MANPAGES PPROFILES SANE SENSOR TESTS VALA
 OPTIONS_DEFAULT=COMPLETION MANPAGES VALA TESTS
-
+OPTIONS_EXCLUDE_purecap=	VALA
+			
 COMPLETION_DESC=Build and install shell completions
 PPROFILES_DESC=	Build extra print profiles (long build time)
 SANE_DESC=	Enable SANE support
