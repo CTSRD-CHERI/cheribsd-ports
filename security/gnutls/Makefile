@@ -17,7 +17,7 @@ LIB_DEPENDS=	libgmp.so:math/gmp \
 		libtasn1.so:security/libtasn1 \
 		libunistring.so:devel/libunistring
 
-USES=		compiler:c11 cpe gmake iconv libtool localbase makeinfo \
+USES=		compiler:c11 cpe gmake iconv libtool localbase \
 		pkgconfig tar:xz
 USE_LDCONFIG=	yes
 
@@ -34,8 +34,9 @@ MAKE_ENV=	MAKEINFOFLAGS=--no-split
 INSTALL_TARGET=	install-strip
 TEST_TARGET=	check
 
-OPTIONS_DEFINE=		DANE EXAMPLES IDN MAN3 NLS P11KIT
+OPTIONS_DEFINE=		DANE DOCS EXAMPLES IDN MAN3 NLS P11KIT
 OPTIONS_DEFAULT=	IDN MAN3 P11KIT
+OPTIONS_EXCLUDE_purecap=MAN3
 OPTIONS_SUB=		yes
 
 DANE_DESC=		Certificate verification via DNSSEC
@@ -57,6 +58,14 @@ P11KIT_CONFIGURE_ON=	--with-default-trust-store-pkcs11="pkcs11:model=p11-kit-tru
 P11KIT_LIB_DEPENDS=	libp11-kit.so:security/p11-kit
 
 INFO=		gnutls gnutls-guile
+
+.include <bsd.port.options.mk>
+
+.if ${PORT_OPTIONS:MDOCS}
+USES+= makeinfo
+.else
+CONFIGURE_ARGS+=--disable-doc
+.endif
 
 post-patch:
 	@${RM} ${WRKSRC}/doc/*.info*
@@ -108,8 +117,10 @@ post-patch:
 		${WRKSRC}/doc/stamp_functions
 
 post-install:
+.if ${PORT_OPTIONS:MDOCS}
 	@${RM} ${STAGEDIR}${DOCSDIR}/*.png
 	@${RMDIR} ${STAGEDIR}${DOCSDIR}
+.endif
 	@${MKDIR} ${STAGEDIR}${EXAMPLESDIR}
 	${INSTALL_DATA} ${WRKSRC}/doc/examples/*.[ch] ${STAGEDIR}${EXAMPLESDIR}
 
