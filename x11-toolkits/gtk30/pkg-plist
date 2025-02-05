@@ -418,9 +418,9 @@ include/gtk-3.0/unix-print/gtk/gtkprintjob.h
 include/gtk-3.0/unix-print/gtk/gtkprintunixdialog.h
 include/gtk-3.0/unix-print/gtk/gtkunixprint-autocleanups.h
 include/gtk-3.0/unix-print/gtk/gtkunixprint.h
-lib/girepository-1.0/Gdk-3.0.typelib
-%%X11%%lib/girepository-1.0/GdkX11-3.0.typelib
-lib/girepository-1.0/Gtk-3.0.typelib
+%%GIR%%lib/girepository-1.0/Gdk-3.0.typelib
+%%GIR%%%%X11%%lib/girepository-1.0/GdkX11-3.0.typelib
+%%GIR%%lib/girepository-1.0/Gtk-3.0.typelib
 lib/gtk-3.0/%%GTK3_VERSION%%/immodules/im-am-et.so
 %%BROADWAY%%lib/gtk-3.0/%%GTK3_VERSION%%/immodules/im-broadway.so
 lib/gtk-3.0/%%GTK3_VERSION%%/immodules/im-cedilla.so
@@ -473,9 +473,9 @@ share/applications/gtk3-icon-browser.desktop
 share/applications/gtk3-widget-factory.desktop
 share/gettext/its/gtkbuilder.its
 share/gettext/its/gtkbuilder.loc
-share/gir-1.0/Gdk-3.0.gir
-%%X11%%share/gir-1.0/GdkX11-3.0.gir
-share/gir-1.0/Gtk-3.0.gir
+%%GIR%%share/gir-1.0/Gdk-3.0.gir
+%%GIR%%%%X11%%share/gir-1.0/GdkX11-3.0.gir
+%%GIR%%share/gir-1.0/Gtk-3.0.gir
 %%DATADIR%%-3.0/gtkbuilder.rng
 %%DATADIR%%-3.0/valgrind/gtk.supp
 %%DATADIR%%-doc/html/gail-libgail-util3/gail-libgail-util3-GailMisc.html
