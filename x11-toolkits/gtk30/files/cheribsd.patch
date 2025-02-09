@@ -1,3 +1,53 @@
+diff --git gdk/gdkenumtypes.c.template gdk/gdkenumtypes.c.template
+index df9edfefa1..5a15d05dd2 100644
+--- gdk/gdkenumtypes.c.template
++++ gdk/gdkenumtypes.c.template
+@@ -12,9 +12,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static volatile gsize g_define_type_id__volatile = 0;
++  static volatile GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -28,7 +28,7 @@ GType
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+diff --git gtk/a11y/gtkcellaccessibleparent.c gtk/a11y/gtkcellaccessibleparent.c
+index bb0590c1ee..1c1475a708 100644
+--- gtk/a11y/gtkcellaccessibleparent.c
++++ gtk/a11y/gtkcellaccessibleparent.c
+@@ -23,9 +23,9 @@
+ GType
+ gtk_cell_accessible_parent_get_type (void)
+ {
+-  static volatile gsize g_define_type_id__volatile = 0;
++  static volatile GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       GType g_define_type_id =
+         g_type_register_static_simple (G_TYPE_INTERFACE,
+@@ -36,7 +36,7 @@ gtk_cell_accessible_parent_get_type (void)
+                                        NULL,
+                                        0);
+ 
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
 diff --git gtk/gtkcssstylefuncs.c gtk/gtkcssstylefuncs.c
 index 466863114a..086e999f50 100644
 --- gtk/gtkcssstylefuncs.c
@@ -56,6 +106,56 @@ index 466863114a..086e999f50 100644
  
    if (func)
      return func (provider, style, parent_style, specified);
+diff --git gtk/gtkprivatetypebuiltins.c.template gtk/gtkprivatetypebuiltins.c.template
+index 2565208bfc..b38d8c2203 100644
+--- gtk/gtkprivatetypebuiltins.c.template
++++ gtk/gtkprivatetypebuiltins.c.template
+@@ -14,9 +14,9 @@
+ GType
+ _@enum_name@_get_type (void)
+ {
+-  static volatile gsize g_define_type_id__volatile = 0;
++  static volatile GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -30,7 +30,7 @@ _@enum_name@_get_type (void)
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+diff --git gtk/gtktypebuiltins.c.template gtk/gtktypebuiltins.c.template
+index f4d748b7b9..9799cd6a5b 100644
+--- gtk/gtktypebuiltins.c.template
++++ gtk/gtktypebuiltins.c.template
+@@ -13,9 +13,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static volatile gsize g_define_type_id__volatile = 0;
++  static volatile GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -29,7 +29,7 @@ GType
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
 diff --git gtk/gtkwidget.c gtk/gtkwidget.c
 index b6e00115bb..10b7c1d3ba 100644
 --- gtk/gtkwidget.c
