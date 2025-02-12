@@ -1,0 +1,70 @@
+diff --git include/json/allocator.h include/json/allocator.h
+index 95ef8a5..7540642 100644
+--- include/json/allocator.h
++++ include/json/allocator.h
+@@ -9,7 +9,8 @@
+ #include <cstring>
+ #include <memory>
+ 
+-#pragma pack(push, 8)
++#pragma pack(push)
++#pragma pack()
+ 
+ namespace Json {
+ template <typename T> class SecureAllocator {
+diff --git include/json/json_features.h include/json/json_features.h
+index 7c7e9f5..e4a61d6 100644
+--- include/json/json_features.h
++++ include/json/json_features.h
+@@ -10,7 +10,8 @@
+ #include "forwards.h"
+ #endif // if !defined(JSON_IS_AMALGAMATION)
+ 
+-#pragma pack(push, 8)
++#pragma pack(push)
++#pragma pack()
+ 
+ namespace Json {
+ 
+diff --git include/json/reader.h include/json/reader.h
+index be0d767..46975d8 100644
+--- include/json/reader.h
++++ include/json/reader.h
+@@ -23,7 +23,8 @@
+ #pragma warning(disable : 4251)
+ #endif // if defined(JSONCPP_DISABLE_DLL_INTERFACE_WARNING)
+ 
+-#pragma pack(push, 8)
++#pragma pack(push)
++#pragma pack()
+ 
+ namespace Json {
+ 
+diff --git include/json/value.h include/json/value.h
+index 0edeb05..57ecb13 100644
+--- include/json/value.h
++++ include/json/value.h
+@@ -53,7 +53,8 @@
+ #pragma warning(disable : 4251 4275)
+ #endif // if defined(JSONCPP_DISABLE_DLL_INTERFACE_WARNING)
+ 
+-#pragma pack(push, 8)
++#pragma pack(push)
++#pragma pack()
+ 
+ /** \brief JSON (JavaScript Object Notation).
+  */
+diff --git include/json/writer.h include/json/writer.h
+index 88a3b12..f26e976 100644
+--- include/json/writer.h
++++ include/json/writer.h
+@@ -20,7 +20,8 @@
+ #pragma warning(disable : 4251)
+ #endif // if defined(JSONCPP_DISABLE_DLL_INTERFACE_WARNING)
+ 
+-#pragma pack(push, 8)
++#pragma pack(push)
++#pragma pack()
+ 
+ namespace Json {
+ 
