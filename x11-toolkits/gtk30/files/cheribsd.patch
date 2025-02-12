@@ -48,6 +48,26 @@ index bb0590c1ee..1c1475a708 100644
      }
  
    return g_define_type_id__volatile;
+diff --git gtk/gtkcssnodestylecache.c gtk/gtkcssnodestylecache.c
+index c5d7562119..a15168dacb 100644
+--- gtk/gtkcssnodestylecache.c
++++ gtk/gtkcssnodestylecache.c
+@@ -28,9 +28,15 @@ struct _GtkCssNodeStyleCache {
+   GHashTable  *children;
+ };
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define UNPACK_DECLARATION(packed) ((GtkCssNodeDeclaration *) ((uintptr_t)packed & ~0x3))
++#define UNPACK_FLAGS(packed) ((ptraddr_t)packed & 0x3)
++#define PACK(decl, first_child, last_child) (void *) ((uintptr_t)decl | ((first_child) ? 0x2 : 0) | ((last_child) ? 0x1 : 0))
++#else   // !__CHERI_PURE_CAPABILITY__
+ #define UNPACK_DECLARATION(packed) ((GtkCssNodeDeclaration *) (GPOINTER_TO_SIZE (packed) & ~0x3))
+ #define UNPACK_FLAGS(packed) (GPOINTER_TO_SIZE (packed) & 0x3)
+ #define PACK(decl, first_child, last_child) GSIZE_TO_POINTER (GPOINTER_TO_SIZE (decl) | ((first_child) ? 0x2 : 0) | ((last_child) ? 0x1 : 0))
++#endif  // !__CHERI_PURE_CAPABILITY__
+ 
+ GtkCssNodeStyleCache *
+ gtk_css_node_style_cache_new (GtkCssStyle *style)
 diff --git gtk/gtkcssstylefuncs.c gtk/gtkcssstylefuncs.c
 index 466863114a..086e999f50 100644
 --- gtk/gtkcssstylefuncs.c

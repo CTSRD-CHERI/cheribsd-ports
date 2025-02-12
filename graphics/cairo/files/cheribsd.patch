@@ -66,6 +66,99 @@ index 2af50cd38..234c77bb8 100644
  #else
  void
  _cairo_atomic_int_inc (cairo_atomic_intptr_t *x)
+diff --git src/cairo-tor-scan-converter.c src/cairo-tor-scan-converter.c
+index e8142d5bc..0e25d119a 100644
+--- src/cairo-tor-scan-converter.c
++++ src/cairo-tor-scan-converter.c
+@@ -101,6 +101,10 @@
+ #include <string.h>
+ #include <limits.h>
+ #include <setjmp.h>
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif   // __CHERI_PURE_CAPABILITY__
+ 
+ /*-------------------------------------------------------------------------
+  * cairo specific config
+@@ -278,12 +282,20 @@ struct _pool_chunk {
+     struct _pool_chunk *prev_chunk;
+ 
+     /* Actual data starts here. Well aligned even for 64 bit types. */
++#if defined(__CHERI_PURE_CAPABILITY__)
++    intptr_t data;
++#else   // !__CHERI_PURE_CAPABILITY__
+     int64_t data;
++#endif  // !__CHERI_PURE_CAPABILITY__
+ };
+ 
+ /* The int64_t data member of _pool_chunk just exists to enforce alignment,
+  * it shouldn't be included in the allocated size for the struct. */
++#if defined(__CHERI_PURE_CAPABILITY__)
++#define SIZEOF_POOL_CHUNK (sizeof(struct _pool_chunk) - sizeof(intptr_t))
++#else   // !__CHERI_PURE_CAPABILITY__
+ #define SIZEOF_POOL_CHUNK (sizeof(struct _pool_chunk) - sizeof(int64_t))
++#endif  // !__CHERI_PURE_CAPABILITY__
+ 
+ /* A memory pool.  This is supposed to be embedded on the stack or
+  * within some other structure.	 It may optionally be followed by an
+@@ -308,6 +320,9 @@ struct pool {
+      * array so that the 'int64_t data' member of _pool_chunk isn't
+      * included. This way embedding struct pool in other structs works
+      * without wasting space. */
++#if defined(__CHERI_PURE_CAPABILITY__)
++    alignas(max_align_t)
++#endif   // __CHERI_PURE_CAPABILITY__
+     char sentinel[SIZEOF_POOL_CHUNK];
+ };
+ 
+@@ -565,13 +580,26 @@ inline static void *
+ pool_alloc (struct pool *pool, size_t size)
+ {
+     struct _pool_chunk *chunk = pool->current;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    size_t aligned_size = __builtin_align_up(size, alignof(max_align_t));
++#endif   // __CHERI_PURE_CAPABILITY__
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++    if (aligned_size <= chunk->capacity - chunk->size) {
++	void *obj = ((unsigned char*)&chunk->data + chunk->size);
++	chunk->size += aligned_size;
++#else   // !__CHERI_PURE_CAPABILITY__
+     if (size <= chunk->capacity - chunk->size) {
+ 	void *obj = ((unsigned char*)&chunk->data + chunk->size);
+ 	chunk->size += size;
++#endif  // !__CHERI_PURE_CAPABILITY__
+ 	return obj;
+     } else {
++#if defined(__CHERI_PURE_CAPABILITY__)
++	return _pool_alloc_from_new_chunk(pool, aligned_size);
++#else   // !__CHERI_PURE_CAPABILITY__
+ 	return _pool_alloc_from_new_chunk(pool, size);
++#endif  // !__CHERI_PURE_CAPABILITY__
+     }
+ }
+ 
+diff --git util/cairo-gobject/cairo-gobject-structs.c util/cairo-gobject/cairo-gobject-structs.c
+index 4bbf11baa..ed4550701 100644
+--- util/cairo-gobject/cairo-gobject-structs.c
++++ util/cairo-gobject/cairo-gobject-structs.c
+@@ -44,12 +44,12 @@
+ GType \
+ underscore_name ## _get_type (void) \
+ { \
+-   static volatile gsize type_volatile = 0; \
+-   if (g_once_init_enter (&type_volatile)) { \
++   static volatile GType type_volatile = 0; \
++   if (g_once_init_enter_pointer (&type_volatile)) { \
+       GType type = g_boxed_type_register_static (g_intern_static_string (Name), \
+                                                  (GBoxedCopyFunc)copy_func, \
+                                                  (GBoxedFreeFunc)free_func); \
+-      g_once_init_leave (&type_volatile, type); \
++      g_once_init_leave_pointer (&type_volatile, type); \
+    } \
+    return type_volatile; \
+ }
 diff --git util/cairo-trace/trace.c util/cairo-trace/trace.c
 index 26ed2e506..5426d683b 100644
 --- util/cairo-trace/trace.c
