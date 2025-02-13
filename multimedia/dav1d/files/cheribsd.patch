@@ -1,0 +1,104 @@
+diff --git src/mc.h src/mc.h
+index 59ba2d9..00b58a7 100644
+--- src/mc.h
++++ src/mc.h
+@@ -103,7 +103,7 @@ void (name)(pixel *dst, ptrdiff_t dst_stride, const pixel *tmp, int w, int h)
+ typedef decl_blend_dir_fn(*blend_dir_fn);
+ 
+ #define decl_emu_edge_fn(name) \
+-void (name)(intptr_t bw, intptr_t bh, intptr_t iw, intptr_t ih, intptr_t x, intptr_t y, \
++void (name)(int bw, int bh, int iw, int ih, int x, int y, \
+             pixel *dst, ptrdiff_t dst_stride, const pixel *src, ptrdiff_t src_stride)
+ typedef decl_emu_edge_fn(*emu_edge_fn);
+ 
+diff --git src/mc_tmpl.c src/mc_tmpl.c
+index 20226d8..ffa887c 100644
+--- src/mc_tmpl.c
++++ src/mc_tmpl.c
+@@ -824,9 +824,9 @@ static void warp_affine_8x8t_c(int16_t *tmp, const ptrdiff_t tmp_stride,
+     }
+ }
+ 
+-static void emu_edge_c(const intptr_t bw, const intptr_t bh,
+-                       const intptr_t iw, const intptr_t ih,
+-                       const intptr_t x, const intptr_t y,
++static void emu_edge_c(const int bw, const int bh,
++                       const int iw, const int ih,
++                       const int x, const int y,
+                        pixel *dst, const ptrdiff_t dst_stride,
+                        const pixel *ref, const ptrdiff_t ref_stride)
+ {
+diff --git src/picture.c src/picture.c
+index f83a4c2..a1f285a 100644
+--- src/picture.c
++++ src/picture.c
+@@ -32,6 +32,10 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif   // __CHERI_PURE_CAPABILITY__
+ 
+ #include "common/intops.h"
+ #include "common/validate.h"
+@@ -128,8 +132,14 @@ static int picture_alloc_with_edges(Dav1dContext *const c,
+     assert(bpc > 0 && bpc <= 16);
+ 
+     size_t extra = c->n_fc > 1 ? sizeof(atomic_int) * 2 : 0;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    size_t aligned_size = __builtin_align_up(extra + sizeof(struct pic_ctx_context),
++                                             alignof(max_align_t));
++    Dav1dMemPoolBuffer *buf = dav1d_mem_pool_pop(c->pic_ctx_pool, aligned_size);
++#else   // !__CHERI_PURE_CAPABILITY__
+     Dav1dMemPoolBuffer *buf = dav1d_mem_pool_pop(c->pic_ctx_pool,
+                                                  extra + sizeof(struct pic_ctx_context));
++#endif  // !__CHERI_PURE_CAPABILITY__
+     if (buf == NULL)
+         return DAV1D_ERR(ENOMEM);
+ 
+diff --git tools/dav1d.c tools/dav1d.c
+index 67937b4..3450958 100644
+--- tools/dav1d.c
++++ tools/dav1d.c
+@@ -168,8 +168,12 @@ static int picture_alloc(Dav1dPicture *const p, void *const _) {
+     if (!buf) return DAV1D_ERR(ENOMEM);
+     p->allocator_data = buf;
+ 
++#if __has_builtin(__builtin_align_up)
++    uint8_t *const data = __builtin_align_up(buf, DAV1D_PICTURE_ALIGNMENT);
++#else
+     const ptrdiff_t align_m1 = DAV1D_PICTURE_ALIGNMENT - 1;
+     uint8_t *const data = (uint8_t *)(((ptrdiff_t)buf + align_m1) & ~align_m1);
++#endif
+     p->data[0] = data + y_sz - y_stride;
+     p->data[1] = has_chroma ? data + y_sz + uv_sz * 1 - uv_stride : NULL;
+     p->data[2] = has_chroma ? data + y_sz + uv_sz * 2 - uv_stride : NULL;
+diff --git tools/output/output.c tools/output/output.c
+index f8910d4..7ec7c69 100644
+--- tools/output/output.c
++++ tools/output/output.c
+@@ -32,6 +32,10 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#if defined(__CHERI_PURE_CAPABILITY__)
++#include <stdalign.h>
++#include <stddef.h>
++#endif   // __CHERI_PURE_CAPABILITY__
+ 
+ #include "common/attributes.h"
+ #include "common/intops.h"
+@@ -46,7 +50,11 @@ struct MuxerContext {
+     unsigned fps[2];
+     const char *filename;
+     int framenum;
++#if defined(__CHERI_PURE_CAPABILITY__)
++    alignas(max_align_t) uint64_t priv_data[];
++#else   // !__CHERI_PURE_CAPABILITY__
+     uint64_t priv_data[];
++#endif  // !__CHERI_PURE_CAPABILITY__
+ };
+ 
+ extern const Muxer null_muxer;
