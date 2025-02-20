@@ -30,4 +30,10 @@ DOCSDIR=	${PREFIX}/share/doc/${PORTNAME}${PKGNAMESUFFIX}
 
 OPTIONS_DEFINE=	DOCS
 
+# execve() under the user mode returns an incorrect errno that causes GLib not
+# to search PATH for glib-genmarshal. Use an absolute path until we fix the user
+# mode.
+post-patch:
+	${REINPLACE_CMD} -e "s|%%LOCALBASE%%|${LOCALBASE}|g" ${WRKSRC}/dbus/dbus-binding-tool-glib.c
+
 .include <bsd.port.mk>

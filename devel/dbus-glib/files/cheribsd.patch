@@ -1,0 +1,11 @@
+--- dbus/dbus-binding-tool-glib.c	2025-02-20 14:40:01.165939000 +0000
++++ dbus/dbus-binding-tool-glib.c	2025-02-20 14:47:59.243946000 +0000
+@@ -882,7 +882,7 @@
+   
+   /* Now spawn glib-genmarshal to insert all our required marshallers */
+   argv = g_ptr_array_new ();
+-  g_ptr_array_add (argv, "glib-genmarshal");
++  g_ptr_array_add (argv, "%%LOCALBASE%%/bin/glib-genmarshal");
+   g_ptr_array_add (argv, "--header");
+   g_ptr_array_add (argv, "--body");
+   g_ptr_array_add (argv, "--skip-source");
