@@ -39,6 +39,8 @@ XXHASH_BUILD_DEPENDS=	xxhash>0:devel/xxhash
 XXHASH_USES=		localbase
 XXHASH_MESON_ENABLED=	xxhash_muxer
 
+.include <bsd.port.pre.mk>
+
 .if make(makesum) # for optional distfiles
 .MAKEFLAGS:	WITH="${OPTIONS_DEFINE}"
 .endif
@@ -50,6 +52,11 @@ MESON_ARGS_clang_amd64=	-Dstack_alignment=16
 MESON_ARGS_clang_i386=	-Dstack_alignment=4
 .endif
 
+.if ${ABI:Mpurecap}
+# Assembly is not adapted to CHERI yet.
+MESON_ARGS+=	-Denable_asm=false
+.endif
+
 pre-install-TEST-on: do-test
 
-.include <bsd.port.mk>
+.include <bsd.port.post.mk>
