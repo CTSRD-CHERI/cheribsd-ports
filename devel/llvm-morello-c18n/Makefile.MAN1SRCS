@@ -1,1 +1,1 @@
-.include "${.PARSEDIR}/../llvm-cheri/Makefile.MAN1SRCS"
+.include "${.PARSEDIR}/../llvm-morello/Makefile.MAN1SRCS"
