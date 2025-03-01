@@ -1,1 +1,1 @@
-.include "${.CURDIR}/../llvm-cheri/Makefile.COMMANDS"
+.include "${.CURDIR}/../llvm-morello/Makefile.COMMANDS"
