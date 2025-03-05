@@ -1,0 +1,14 @@
+{
+    "compartments": {
+        "io": {
+            "files": [
+                "*/pngerror.c.o",
+                "*/pngread.c.o",
+                "*/pngrio.c.o",
+                "*/pngwio.c.o",
+                "*/pngwrite.c.o"
+            ]
+            ]
+        }
+    }
+}
