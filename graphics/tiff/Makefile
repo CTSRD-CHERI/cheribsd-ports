@@ -30,6 +30,13 @@ CMAKE_OFF=	CMAKE_DISABLE_FIND_PACKAGE_GLUT \
 		tiff-tests
 
 OPTIONS_DEFINE=	DOCS
+OPTIONS_DEFINE_purecap=	C18N
+
+.include <bsd.port.options.mk>
+
+.if ${PORT_OPTIONS:MC18N}
+CMAKE_ARGS+=	-DCOMPARTMENT_POLICY=${FILESDIR}/libtiff.c18n
+.endif
 
 post-install:
 	${INSTALL_MAN} ${WRKSRC}/doc/man-prebuilt/*.1 ${STAGEDIR}${PREFIX}/share/man/man1
