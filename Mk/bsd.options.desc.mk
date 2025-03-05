@@ -52,6 +52,7 @@ CDDA2WAV_DESC?=		CD ripping support (via cdda2wav)
 CDDB_DESC?=		CDDB (compact disc database) support
 CDIO_DESC?=		CDIO support via libcdio
 CDPARANOIA_DESC?=	CD ripping support (via cdparanoia)
+C18N_DESC?=		CHERI linker-based compartmentalization (c18n)
 CELT_DESC?=		CELT audio codec support
 CFITSIO_DESC?=		FITS support via CFITSIO
 CLI_DESC?=		Command-line interface support
