@@ -1,0 +1,13 @@
+--- CMakeLists.txt.orig	2023-06-21 19:06:40 UTC
++++ CMakeLists.txt
+@@ -652,6 +652,10 @@ if(PNG_SHARED)
+       set_target_properties(png_shared PROPERTIES
+                             LINK_FLAGS "-Wl,-M -Wl,'${CMAKE_CURRENT_BINARY_DIR}/libpng.vers'")
+     endif()
++    if (DEFINED COMPARTMENT_POLICY)
++      set_target_properties(png_shared PROPERTIES
++                            LINK_FLAGS "-Wl,--compartment-policy=${COMPARTMENT_POLICY}")
++    endif()
+   endif()
+   if(WIN32)
+     set_target_properties(png_shared PROPERTIES DEFINE_SYMBOL PNG_BUILD_DLL)
