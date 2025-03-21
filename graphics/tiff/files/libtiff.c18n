@@ -1,0 +1,14 @@
+{
+    "compartments": {
+        "io": {
+            "files": [
+                "*/tif_print.c.o",
+                "*/tif_unix.c.o"
+            ],
+            "symbols": [
+                "*PrintDir",
+                "_TIFFPrintFieldInfo"
+            ]
+        }
+    }
+}
