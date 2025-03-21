@@ -32,10 +32,10 @@ Cr-Commit-Position: refs/heads/main@{#1150815}
  base/containers/checked_iterators_unittest.cc | 29 +++++++++++++------
  2 files changed, 44 insertions(+), 10 deletions(-)
 
-diff --git a/base/containers/checked_iterators.h b/base/containers/checked_iterators.h
+diff --git base/containers/checked_iterators.h base/containers/checked_iterators.h
 index 5c8292bd68a2a4..b67a2db4bfa3be 100644
---- a/base/containers/checked_iterators.h
-+++ b/base/containers/checked_iterators.h
+--- base/containers/checked_iterators.h
++++ base/containers/checked_iterators.h
 @@ -24,6 +24,9 @@ class CheckedContiguousIterator {
    using pointer = T*;
    using reference = T&;
@@ -80,10 +80,10 @@ index 5c8292bd68a2a4..b67a2db4bfa3be 100644
  template <typename T>
  struct pointer_traits<::base::CheckedContiguousIterator<T>> {
    using pointer = ::base::CheckedContiguousIterator<T>;
-diff --git a/base/containers/checked_iterators_unittest.cc b/base/containers/checked_iterators_unittest.cc
+diff --git base/containers/checked_iterators_unittest.cc base/containers/checked_iterators_unittest.cc
 index 4d7cffa1630314..07e628a10bafbd 100644
---- a/base/containers/checked_iterators_unittest.cc
-+++ b/base/containers/checked_iterators_unittest.cc
+--- base/containers/checked_iterators_unittest.cc
++++ base/containers/checked_iterators_unittest.cc
 @@ -85,11 +85,8 @@ TEST(CheckedContiguousIterator, ConvertingComparisonOperators) {
  
  }  // namespace base
