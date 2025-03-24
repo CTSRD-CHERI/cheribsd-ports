@@ -22,7 +22,7 @@ CONFLICTS_INSTALL=	nginx-devel
 
 PORTSCOUT=	limit:^1\.24\.[0-9]*
 
-USES=		cpe
+USES+=		cpe
 
 CPE_VENDOR=	f5
 CPE_PRODUCT=	nginx
