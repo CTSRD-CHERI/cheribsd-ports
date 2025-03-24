@@ -1,4 +1,4 @@
-.ifndef SLAVE_PORT
+.ifndef MASTERDIR
 IGNORE=		is replaced by www/nginx-meta on CheriBSD
 
 PORTNAME=	nginx
@@ -26,7 +26,7 @@ USES=		cpe
 
 CPE_VENDOR=	f5
 CPE_PRODUCT=	nginx
-.ifndef SLAVE_PORT
+.ifndef MASTERDIR
 USE_GITHUB=	nodefault
 .endif
 
