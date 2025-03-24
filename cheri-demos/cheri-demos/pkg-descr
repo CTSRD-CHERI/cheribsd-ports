@@ -1,0 +1,6 @@
+Meta-port to pull in assorted CHERI demos.  The default flavor pulls in
+harmless demos and their dependencies.
+
+The vulnerable flavor includes more risky software such as network
+servers with unpatched or deliberately introduced vulnerabilities and
+should be used with great care.
