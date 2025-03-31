@@ -1,15 +1,22 @@
 PORTNAME=	gc
-DISTVERSION=	8.2.4
+DISTVERSION=	8.3.0
 CATEGORIES=	devel
-MASTER_SITES=	http://www.hboehm.info/gc/gc_source/ \
-		https://github.com/ivmai/bdwgc/releases/download/v${PORTVERSION}/
+DISTNAME=	bdwgc
+EXTRACT_SUFX=	.tar.gz
+DISTFILES=	${DISTNAME}${EXTRACT_SUFX}
+
+USE_GITHUB=	yes
+GH_ACCOUNT=	capablevms
+GH_PROJECT=	bdwgc
+GH_TAGNAME=	df6a3b7
+
 PKGNAMEPREFIX=	boehm-
 .ifdef GC_VARIANT
 PKGNAMESUFFIX=	-${GC_VARIANT}
 .endif
 
-MAINTAINER=	yasu@FreeBSD.org
-COMMENT=	Garbage collection and memory leak detection for C and C++
+MAINTAINER=	dejice.jacob@glasgow.ac.uk
+COMMENT=	Garbage collection and memory leak detection for C, with CHERI purecap support
 WWW=		https://www.hboehm.info/gc/
 
 LICENSE=	BDWGC
@@ -19,7 +26,7 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 BUILD_DEPENDS=	${LOCALBASE}/lib/libatomic_ops.a:devel/libatomic_ops
 
-USES=		cpe libtool pathfix pkgconfig
+USES=		autoreconf
 CPE_VENDOR=	boehm-demers-weiser
 CPE_PRODUCT=	garbage_collector
 USE_LDCONFIG=	yes
@@ -33,8 +40,6 @@ CONFIGURE_ARGS=	--enable-cplusplus \
 MAKE_JOBS_UNSAFE=	yes
 INSTALL_TARGET=	install-strip
 TEST_TARGET=	check
-
-WRKSRC=		${WRKDIR}/${DISTNAME:C/[a-z]$//}
 
 OPTIONS_DEFINE=	DEBUG
 
@@ -56,7 +61,7 @@ PLIST_FILES=		${CORDLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.a,} \
 			${GCLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.a,} \
 			${GCLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so,} \
 			${GCLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so.1,} \
-			${GCLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so.1.5.2,} \
+			${GCLIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so.1.5.1,} \
 			${GCTBALIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.a,} \
 			${GCTBALIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so,} \
 			${GCTBALIBS:S,^,lib/lib,:S,$,-${GC_VARIANT}.so.1,} \
@@ -87,11 +92,6 @@ PARALLEL_MARK_CONFIGURE_WITH=	--enable-parallel-mark
 .ifdef GC_VARIANT
 post-patch:
 	@${REINPLACE_CMD} -e \
-		's,libcord\.la,libcord-${GC_VARIANT}.la,g ; \
-		s,libgc\.la,libgc-${GC_VARIANT}.la,g ; \
-		s,libgccpp\.la,libgccpp-${GC_VARIANT}.la,g ; \
-		s,libgctba\.la,libgctba-${GC_VARIANT}.la,g' ${WRKSRC}/Makefile.in
-	@${REINPLACE_CMD} -e \
 		's,-lgc,-lgc-${GC_VARIANT},' ${WRKSRC}/bdw-gc.pc.in
 
 post-install:
@@ -103,16 +103,13 @@ post-install:
 		${STAGEDIR}${PREFIX}/include/gc
 . endif
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libcord-${GC_VARIANT}.so.1.5.0
-	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libgc-${GC_VARIANT}.so.1.5.2
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libgc-${GC_VARIANT}.so.1.5.1
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libgccpp-${GC_VARIANT}.so.1.5.0
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libgctba-${GC_VARIANT}.so.1.5.0
 
 .else # ! GC_VARIANT
 post-patch:
-	@${REINPLACE_CMD} -e "s|%%PREFIX%%|${PREFIX}|g" ${WRKSRC}/doc/gc.man
-	@${REINPLACE_CMD} \
-		-e "s|(datadir)/@PACKAGE@|(datadir)/doc/@PACKAGE@|" \
-		${WRKSRC}/Makefile.in
+	@${REINPLACE_CMD} -e "s|%%PREFIX%%|${PREFIX}|g" ${WRKSRC}/gc.man
 
 post-install:
 	@${MKDIR} ${STAGEDIR}${DOCSDIR}
