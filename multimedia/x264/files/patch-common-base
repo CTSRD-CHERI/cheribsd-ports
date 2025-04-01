@@ -1,0 +1,11 @@
+--- common/base.h.orig	2025-04-01 16:10:29.072884000 +0100
++++ common/base.h	2025-04-01 16:10:34.438972000 +0100
+@@ -333,7 +333,7 @@
+ do {\
+     CHECKED_MALLOC( ptr, prealloc_size );\
+     while( prealloc_idx-- )\
+-        *preallocs[prealloc_idx] = (uint8_t*)((intptr_t)(*preallocs[prealloc_idx]) + (intptr_t)ptr);\
++        *preallocs[prealloc_idx] = (uint8_t*)((intptr_t)ptr + (size_t)(*preallocs[prealloc_idx]));\
+ } while( 0 )
+ 
+ #endif
