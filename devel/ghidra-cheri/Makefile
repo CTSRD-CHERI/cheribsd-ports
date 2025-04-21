@@ -8,7 +8,16 @@ MASTER_SITES=	SF/pydev/pydev/PyDev%206.3.1/:pydev \
 		https://ftp.postgresql.org/pub/source/v15.3/:postgresql \
 		https://github.com/NationalSecurityAgency/ghidra-data/raw/Ghidra_11.1/:ghidra \
 		https://github.com/pxb1988/dex2jar/releases/download/v2.1/:dex2jar \
-		https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/android4me/:axml2printer
+		https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/android4me/:axml2printer \
+		https://files.pythonhosted.org/packages/8d/14/619e24a4c70df2901e1f4dbc50a6291eb63a759172558df326347dce1f0d/:py_protobuf \
+		https://files.pythonhosted.org/packages/90/c7/6dc0a455d111f68ee43f27793971cf03fe29b6ef972042549db29eec39a2/:py_psutil \
+		https://files.pythonhosted.org/packages/c7/42/be1c7bbdd83e1bfb160c94b9cafd8e25efc7400346cf7ccdbdb452c467fa/:py_setuptools \
+		https://files.pythonhosted.org/packages/27/d6/003e593296a85fd6ed616ed962795b2f87709c3eee2bca4f6d0fe55c6d00/:py_wheel \
+		https://files.pythonhosted.org/packages/2d/e0/f877c91e036fcaed2a827f80d6cbdf1d26cffc3333c9ebda31c55c45f050/:py_pybag \
+		https://files.pythonhosted.org/packages/d0/dd/b28df50316ca193dd1275a4c47115a720796d9e1501c1888c4bfa5dc2260/:py_capstone \
+		https://files.pythonhosted.org/packages/50/8f/518a37381e55a8857a638afa86143efa5508434613541402d20611a1b322/:py_comtypes \
+		https://files.pythonhosted.org/packages/83/1c/25b79fc3ec99b19b0a0730cc47356f7e2959863bf9f3cd314332bddb4f68/:py_pywin32
+
 DISTFILES=	AXMLPrinter2.jar:axml2printer \
 		FunctionID/vs2012_x64.fidb:ghidra \
 		FunctionID/vs2012_x86.fidb:ghidra \
@@ -25,7 +34,15 @@ DISTFILES=	AXMLPrinter2.jar:axml2printer \
 		dex2jar-2.1.zip:dex2jar \
 		lib/java-sarif-2.1-modified.jar:ghidra \
 		postgresql-15.3.tar.gz:postgresql \
-		yajsw-stable-13.09.zip:yajsw
+		yajsw-stable-13.09.zip:yajsw \
+		protobuf-3.20.3-py2.py3-none-any.whl:py_protobuf \
+		psutil-5.9.8.tar.gz:py_psutil \
+		setuptools-68.0.0-py3-none-any.whl:py_setuptools \
+		wheel-0.37.1-py2.py3-none-any.whl:py_wheel \
+		Pybag-2.2.10-py3-none-any.whl:py_pybag \
+		capstone-5.0.1-py3-none-win_amd64.whl:py_capstone \
+		comtypes-1.4.1-py3-none-any.whl:py_comtypes \
+		pywin32-306-cp312-cp312-win_amd64.whl:py_pywin32
 DIST_SUBDIR=	${PORTNAME}
 EXTRACT_ONLY=	${DISTNAME}${EXTRACT_SUFX}
 
@@ -112,6 +129,16 @@ post-extract:
 	@${CP} ${DISTDIR}/${DIST_SUBDIR}/cdt-8.6.0.zip ${WRKSRC}/dependencies/GhidraDev
 	${MKDIR} ${WRKSRC}/dependencies/fidb
 	@${CP} ${DISTDIR}/${DIST_SUBDIR}/FunctionID/*fidb ${WRKSRC}/dependencies/fidb
+	${MKDIR} ${WRKSRC}/dependencies/Debugger-rmi-trace
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/protobuf-3.20.3-py2.py3-none-any.whl ${WRKSRC}/dependencies/Debugger-rmi-trace
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/psutil-5.9.8.tar.gz ${WRKSRC}/dependencies/Debugger-rmi-trace
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/setuptools-68.0.0-py3-none-any.whl ${WRKSRC}/dependencies/Debugger-rmi-trace
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/wheel-0.37.1-py2.py3-none-any.whl ${WRKSRC}/dependencies/Debugger-rmi-trace
+	${MKDIR} ${WRKSRC}/dependencies/Debugger-agent-dbgeng
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/Pybag-2.2.10-py3-none-any.whl ${WRKSRC}/dependencies/Debugger-agent-dbgeng
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/capstone-5.0.1-py3-none-win_amd64.whl ${WRKSRC}/dependencies/Debugger-agent-dbgeng
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/comtypes-1.4.1-py3-none-any.whl ${WRKSRC}/dependencies/Debugger-agent-dbgeng
+	@${CP} ${DISTDIR}/${DIST_SUBDIR}/pywin32-306-cp312-cp312-win_amd64.whl ${WRKSRC}/dependencies/Debugger-agent-dbgeng
 	@${RM} -r ${GRADLE_HOME_BASE}/gradle-${PORTNAME}
 .if (${DEV_UPDATE_MODE} == "no")
 	@${LN} -sf ${WRKDIR}/gradle-${PORTNAME} ${GRADLE_HOME_BASE}
