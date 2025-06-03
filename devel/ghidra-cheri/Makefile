@@ -66,11 +66,12 @@ NOT_FOR_ABIS_REASON_purecap=is not adapted for CheriABI yet
 EXTRACT_DEPENDS=	${UNZIP_CMD}:archivers/unzip
 BUILD_DEPENDS=		bash:shells/bash \
 			gradle>=7.3:devel/gradle \
-			protoc:devel/protobuf
+			protoc:devel/protobuf \
+			${PYTHON_PKGNAMEPREFIX}pip>0:devel/py-pip@${PY_FLAVOR}
 RUN_DEPENDS=		bash:shells/bash \
 			protoc:devel/protobuf
 
-USES=		bison cpe shebangfix
+USES=		bison cpe python:build shebangfix
 CPE_VENDOR=	nsa
 
 USE_JAVA=	yes
