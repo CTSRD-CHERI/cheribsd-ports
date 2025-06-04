@@ -1,0 +1,10 @@
+{
+    "compartments": {
+        "io": {
+            "files": [
+                "*/pngrio.c.o",
+                "*/pngwio.c.o"
+            ]
+        }
+    }
+}
