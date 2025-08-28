@@ -1,0 +1,17 @@
+TIMESTAMP = 1756301922
+SHA256 (v8-purecap/bea11f0/4ee099ac1c0d6e86e53cedfdcfd7cd2d45e126ca.tar.gz) = 1f7020e71ba306ae0ffa3c039b8e77efab4ddca29843ad1cbb1500b0300fbe02
+SIZE (v8-purecap/bea11f0/4ee099ac1c0d6e86e53cedfdcfd7cd2d45e126ca.tar.gz) = 381431
+SHA256 (v8-purecap/bea11f0/147f65333c38ddd1ebf554e89965c243c8ce50b3.tar.gz) = b82106687dbcc99b89567ac479c4a896fa6dca10922830c1ee611019404d5c9a
+SIZE (v8-purecap/bea11f0/147f65333c38ddd1ebf554e89965c243c8ce50b3.tar.gz) = 10500
+SHA256 (v8-purecap/bea11f0/af29db7ec28d6df1c7f0f745186884091e602e07.tar.gz) = d11f2bcdbb82aca17567bc005abd214831216d2ad872acaa20f691fa2f6b04d7
+SIZE (v8-purecap/bea11f0/af29db7ec28d6df1c7f0f745186884091e602e07.tar.gz) = 854064
+SHA256 (v8-purecap/bea11f0/a2961dc659b4ae847a9c6120718cc2517ee57d9e.tar.gz) = 9c8405b14b6b054c039e3144c701652cb7e86f334952edb91c8fae7fbad4addd
+SIZE (v8-purecap/bea11f0/a2961dc659b4ae847a9c6120718cc2517ee57d9e.tar.gz) = 51478275
+SHA256 (v8-purecap/bea11f0/chromium-cheri-v8-bea11f0_GH0.tar.gz) = 1a2b86828e5db83dd4296b87d9358b5920a488ff29c006540cead63598acbd9b
+SIZE (v8-purecap/bea11f0/chromium-cheri-v8-bea11f0_GH0.tar.gz) = 29490189
+SHA256 (v8-purecap/bea11f0/chromium-cheri-build-488dc76_GH0.tar.gz) = ef98122aa364cfb90ff210fb386ac8d8daadb4645c598412b805e2df73d34163
+SIZE (v8-purecap/bea11f0/chromium-cheri-build-488dc76_GH0.tar.gz) = 1519109
+SHA256 (v8-purecap/bea11f0/chromium-cheri-buildtools-8b16338_GH0.tar.gz) = ffd32a05abf65358c73772815dcb9b186c42c2022d2a386e17657964013c34b6
+SIZE (v8-purecap/bea11f0/chromium-cheri-buildtools-8b16338_GH0.tar.gz) = 88415
+SHA256 (v8-purecap/bea11f0/chromium-cheri-zlib-05ca39b_GH0.tar.gz) = 5ff76de4f6a31a519f3ffaa6b7eefff802ba0bcb92965b4e1a642ec8af99f6e9
+SIZE (v8-purecap/bea11f0/chromium-cheri-zlib-05ca39b_GH0.tar.gz) = 578917
