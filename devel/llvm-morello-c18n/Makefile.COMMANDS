@@ -1,1 +1,9 @@
 .include "${.CURDIR}/../llvm-morello/Makefile.COMMANDS"
+
+LLVM_COMMANDS+= \
+		clang-nvlink-wrapper \
+		clang-offload-wrapper \
+		split-file
+
+CLANG_COMMANDS+= \
+		clang-include-cleaner
