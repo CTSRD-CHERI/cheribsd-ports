@@ -51,7 +51,8 @@ CMAKE_OFF=	WITH_SIMD
 .endif
 
 .if ${PORT_OPTIONS:MC18N}
-CMAKE_ARGS+=   -DCOMPARTMENT_POLICY=${FILESDIR}/libjpeg.c18n
+COMPARTMENT_POLICY?=	${FILESDIR}/libjpeg.c18n
+USES+=		compiler:c18n
 .endif
 
 .if ${SLAVE_PORT} == yes
