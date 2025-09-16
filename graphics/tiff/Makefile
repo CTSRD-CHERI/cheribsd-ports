@@ -35,7 +35,8 @@ OPTIONS_DEFINE_purecap=	C18N
 .include <bsd.port.options.mk>
 
 .if ${PORT_OPTIONS:MC18N}
-CMAKE_ARGS+=	-DCOMPARTMENT_POLICY=${FILESDIR}/libtiff.c18n
+COMPARTMENT_POLICY?=	${FILESDIR}/libtiff.c18n
+USES+=		compiler:c18n
 .endif
 
 post-install:
