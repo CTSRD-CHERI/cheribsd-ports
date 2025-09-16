@@ -137,6 +137,10 @@ INSTALL_WRKSRC?=	${CONFIGURE_WRKSRC}
 TEST_WRKSRC?=		${CONFIGURE_WRKSRC}
 .    endif
 
+.    if defined(COMPARTMENT_POLICY)
+CMAKE_ARGS+=	-DCOMPARTMENT_POLICY=${COMPARTMENT_POLICY}
+.    endif
+
 # By default we use the ninja generator.
 #  Except, if cmake:run is set (cmake not wanted as generator)
 #             fortran is used, as the ninja-generator does not handle it.
