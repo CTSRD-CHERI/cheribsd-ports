@@ -14,6 +14,7 @@
 # c++11-lib:	The port needs a compiler understanding C++11 and with a C++11 ready standard library
 # c11:		The port needs a compiler understanding C11
 # nestedfct:	The port needs a compiler understanding nested functions
+# c18n:		The port needs a compiler understanding linker-based compartmentalization (c18n)
 # features:	The port will determine the features supported by the default compiler
 #
 # Variable to test after <bsd.port.pre.mk>
@@ -65,6 +66,8 @@ _COMPILER_ARGS+=	features
 _COMPILER_ARGS+=	env
 .  elif ${compiler_ARGS} == nestedfct
 _COMPILER_ARGS+=	env nestedfct
+.  elif ${compiler_ARGS} == c18n
+_COMPILER_ARGS+=	env c18n
 .  else
 IGNORE=	Invalid argument "${compiler_ARGS}", valid arguments are: ${VALID_ARGS}
 _COMPILER_ARGS=	#
@@ -173,7 +176,8 @@ CHOSEN_COMPILER_TYPE=	gcc
 (${_COMPILER_ARGS:Mc++14-lang} && !${COMPILER_FEATURES:Mc++14}) || \
 (${_COMPILER_ARGS:Mc++11-lang} && !${COMPILER_FEATURES:Mc++11}) || \
 (${_COMPILER_ARGS:Mc++0x} && !${COMPILER_FEATURES:Mc++0x}) || \
-(${_COMPILER_ARGS:Mc11} && !${COMPILER_FEATURES:Mc11})
+(${_COMPILER_ARGS:Mc11} && !${COMPILER_FEATURES:Mc11}) || \
+(${_COMPILER_ARGS:Mc18n})
 .    if ${_COMPILER_ARGS:Mc++2b-lang}
 _LLVM_MINVER=	14
 .    elif ${_COMPILER_ARGS:Mc++20-lang}
@@ -185,7 +189,8 @@ _LLVM_MINVER=	0
 USE_GCC=	yes
 CHOSEN_COMPILER_TYPE=	gcc
 .    elif ${COMPILER_TYPE} == gcc || \
-	(${COMPILER_VERSION:C/[0-9]$//}<${_LLVM_MINVER})
+	(${COMPILER_VERSION:C/[0-9]$//}<${_LLVM_MINVER}) || \
+	${_COMPILER_ARGS:Mc18n}
 .      if ${ALT_COMPILER_TYPE} == clang && \
 	(${ALT_COMPILER_VERSION:C/[0-9]$//}>=${_LLVM_MINVER})
 CPP=	clang-cpp
@@ -195,13 +200,15 @@ CHOSEN_COMPILER_TYPE=	clang
 .      else
 .        if ${LLVM_DEFAULT:C/^[789]0$/0/}<${_LLVM_MINVER}
 _LLVM_REQ=	${_LLVM_MINVER}
+.        elif ${_COMPILER_ARGS:Mc18n}
+_LLVM_REQ=	-morello-c18n
 .        else
 _LLVM_REQ=	${LLVM_DEFAULT}
 .        endif
 BUILD_DEPENDS+=	clang${_LLVM_REQ}:devel/llvm${_LLVM_REQ}
-CPP=	${LOCALBASE}/bin/clang-cpp${_LLVM_REQ}
-CC=	${LOCALBASE}/bin/clang${_LLVM_REQ}
-CXX=	${LOCALBASE}/bin/clang++${_LLVM_REQ}
+CPP=	${LOCALBASE64}/bin/clang-cpp${_LLVM_REQ}
+CC=	${LOCALBASE64}/bin/clang${_LLVM_REQ}
+CXX=	${LOCALBASE64}/bin/clang++${_LLVM_REQ}
 CHOSEN_COMPILER_TYPE=	clang
 .      endif
 .    endif
