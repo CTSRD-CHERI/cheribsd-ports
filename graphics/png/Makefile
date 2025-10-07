@@ -2,7 +2,8 @@ PORTNAME=	png
 DISTVERSION=	1.6.48
 CATEGORIES=	graphics
 MASTER_SITES=	SF/lib${PORTNAME}/lib${PORTNAME}16/${DISTVERSION}/
-PATCH_SITES=	SF/lib${PORTNAME}-apng/lib${PORTNAME}16/${DISTVERSION}/
+#PATCH_SITES=	SF/lib${PORTNAME}-apng/lib${PORTNAME}16/${DISTVERSION}/
+PATCH_SITES=	SF/lib${PORTNAME}-apng/lib${PORTNAME}16/1.6.47/
 # Keep this because you normally need to keep patch version in sync with release 
 DISTNAME=	lib${PORTNAME}-${DISTVERSION}
 
