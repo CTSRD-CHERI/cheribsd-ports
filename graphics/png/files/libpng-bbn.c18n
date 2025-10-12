@@ -1167,6 +1167,88 @@
                             "name": "memset",
                             "type": "symbol"
                         }
+                    },
+
+
+                    {
+                        "subject": {
+                            "name": "compart_930"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_934"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_937"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_939"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_941"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_943"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_946"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_947"
+                        },
+                        "permissions": "r",
+                        "object": {
+                            "name": ".L.str*",
+                            "type": "symbol"
+                        }
                     }
                 ]
 }
