@@ -29,7 +29,6 @@
                             "png_handle_tEXt",
                             "png_handle_zTXt",
                             "png_pow10",
-                            "png_reciprocal",
                             "png_set_sCAL",
                             "png_set_sCAL_fixed",
                             "png_set_sCAL_s",
@@ -303,6 +302,7 @@
                     "compart_946": {
                         "symbols": [
                             "png_build_grayscale_palette",
+                            "png_reciprocal",
 
                             "abs",
                             "decode_gamma",
