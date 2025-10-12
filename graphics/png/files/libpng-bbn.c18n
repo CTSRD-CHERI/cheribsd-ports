@@ -1,7 +1,4 @@
 {
-    "dsos": [
-        {
-            "UNNAMED_DSO": {
                 "compartments": {
                     "compart_930": {
                         "symbols": [
@@ -1061,7 +1058,4 @@
                         }
                     }
                 ]
-            }
-        }
-    ]
 }
