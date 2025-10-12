@@ -1,5 +1,18 @@
 {
                 "compartments": {
+                    "compart_cst8_default_946_947": {
+                        "symbols": [
+                            "png_get_pHYs_dpi",
+                            "png_get_cHRM",
+                            "png_get_gAMA",
+                            "png_get_cLLI",
+                            "png_get_mDCV",
+                            "png_get_cHRM_XYZ",
+                            "png_get_x_offset_inches",
+                            "png_get_y_offset_inches"
+                        ]
+                    },
+
                     "compart_930": {
                         "symbols": [
                             "png_check_keyword",
@@ -364,7 +377,6 @@
                             "png_gamma_not_sRGB",
                             "png_gamma_significant",
                             "png_gamma_threshold",
-                            "png_get_cHRM_XYZ",
                             "png_get_cHRM_XYZ_fixed",
                             "png_get_pixel_aspect_ratio_fixed",
                             "png_image_memory_read",
@@ -430,12 +442,10 @@
                             "png_get_libpng_ver",
                             "png_get_pixels_per_inch",
                             "png_get_pixels_per_meter",
-                            "png_get_x_offset_inches",
                             "png_get_x_offset_inches_fixed",
                             "png_get_x_offset_microns",
                             "png_get_x_pixels_per_inch",
                             "png_get_x_pixels_per_meter",
-                            "png_get_y_offset_inches",
                             "png_get_y_offset_inches_fixed",
                             "png_get_y_offset_microns",
                             "png_get_y_pixels_per_inch",
