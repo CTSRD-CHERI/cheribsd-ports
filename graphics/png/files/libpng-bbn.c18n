@@ -302,6 +302,8 @@
                     },
                     "compart_946": {
                         "symbols": [
+                            "png_build_grayscale_palette",
+
                             "abs",
                             "decode_gamma",
                             "gmtime",
