@@ -419,6 +419,8 @@
                     },
                     "compart_947": {
                         "symbols": [
+                            "png_write_fdAT",
+
                             "abort",
                             "add_one_chunk",
                             "crc32",
