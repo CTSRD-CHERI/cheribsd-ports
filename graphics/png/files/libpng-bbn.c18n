@@ -104,6 +104,7 @@
                             "png_set_strip_16",
                             "png_set_strip_alpha",
                             "png_sig_cmp",
+                            "png_sig_cmp.png_signature",
                             "png_unpremultiply",
                             "png_write_image_8bit"
                         ]
@@ -263,14 +264,11 @@
                         "symbols": [
                             "deflateInit2_",
                             "deflateReset",
-                            "free",
                             "icc_check_length",
                             "inflate",
-                            "inflateReset",
                             "is_ICC_signature",
                             "is_ICC_signature_char",
                             "memcpy",
-                            "memset",
                             "png_app_error",
                             "png_app_warning",
                             "png_chunk_benign_error",
@@ -423,7 +421,6 @@
 
                             "abort",
                             "add_one_chunk",
-                            "crc32",
                             "fprintf",
                             "fwrite",
                             "longjmp",
@@ -843,6 +840,16 @@
                     },
                     {
                         "subject": {
+                            "name": "compart_937"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "memcmp",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
                             "name": "compart_946"
                         },
                         "permissions": "x",
@@ -863,6 +870,16 @@
                     },
                     {
                         "subject": {
+                            "name": "compart_947"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "crc32",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
                             "name": "compart_939"
                         },
                         "permissions": "x",
@@ -879,6 +896,46 @@
                         "object": {
                             "name": "compart_934",
                             "type": "compartment"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_946"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "memset",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_946"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "memcpy",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_946"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "setjmp",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_946"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "longjmp",
+                            "type": "symbol"
                         }
                     },
                     {
@@ -953,6 +1010,16 @@
                     },
                     {
                         "subject": {
+                            "name": "compart_943"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "inflateReset",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
                             "name": "compart_934"
                         },
                         "permissions": "x",
@@ -999,6 +1066,16 @@
                         "object": {
                             "name": "compart_943",
                             "type": "compartment"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_941"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "memset",
+                            "type": "symbol"
                         }
                     },
                     {
@@ -1069,6 +1146,26 @@
                         "object": {
                             "name": "compart_939",
                             "type": "compartment"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_943"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "free",
+                            "type": "symbol"
+                        }
+                    },
+                    {
+                        "subject": {
+                            "name": "compart_943"
+                        },
+                        "permissions": "x",
+                        "object": {
+                            "name": "memset",
+                            "type": "symbol"
                         }
                     }
                 ]
