@@ -5,8 +5,8 @@
                              LINK_FLAGS "-Wl,-M -Wl,'${CMAKE_CURRENT_BINARY_DIR}/libpng.vers'")
      endif()
 +    if (DEFINED COMPARTMENT_POLICY)
-+      set_target_properties(png_shared PROPERTIES
-+                            LINK_FLAGS "-Wl,--compartment-policy=${COMPARTMENT_POLICY}")
++      set_property(TARGET png_shared APPEND_STRING PROPERTY
++                            LINK_FLAGS " -Wl,--compartment-policy=${COMPARTMENT_POLICY}")
 +    endif()
    endif()
    if(WIN32)
