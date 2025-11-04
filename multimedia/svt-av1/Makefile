@@ -26,6 +26,8 @@ CMAKE_OFF=	NATIVE
 
 OPTIONS_DEFINE=	LTO
 OPTIONS_DEFAULT=LTO
+# ABI-specific parameters are not taking into account when using LTO.
+OPTIONS_EXCLUDE_purecap=	LTO
 OPTIONS_EXCLUDE_powerpc64=	${"${/usr/bin/ld:L:tA}"==/usr/bin/ld.lld:?LTO:} # https://github.com/llvm/llvm-project/issues/46697
 OPTIONS_EXCLUDE_riscv64=	LTO # bug 262871
 
