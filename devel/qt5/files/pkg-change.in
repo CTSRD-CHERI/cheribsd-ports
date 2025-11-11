@@ -40,9 +40,9 @@
 ##
 ## On deinstall, we need QT_INCDIR separately, so define variables $qi and $qc
 ## differently from install (which needs only $qc).
-@deinstall              qi="%%QT_INCDIR%%"
+@deinstall              qi="${PKG_ROOTDIR}%%QT_INCDIR%%"
 @deinstall              qc="$qi/QtCore/qconfig-modules.h"
-@install                qc="%%QT_INCDIR%%/QtCore/qconfig-modules.h"
+@install                qc="${PKG_ROOTDIR}%%QT_INCDIR%%/QtCore/qconfig-modules.h"
                         qm="%%QT_MODNAME%%"
 ##
 ## Distinguish the pkg step and call the relevant shell functions defined above.
