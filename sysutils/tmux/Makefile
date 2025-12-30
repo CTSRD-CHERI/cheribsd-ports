@@ -1,6 +1,6 @@
 PORTNAME=	tmux
 PORTVERSION=	3.3a
-PORTREVISION=	1
+PORTREVISION=	2
 CATEGORIES=	sysutils
 MASTER_SITES=	https://github.com/tmux/tmux/releases/download/${PORTVERSION}/
 DISTFILES=	${DISTNAME}${EXTRACT_SUFX}
@@ -17,6 +17,8 @@ LICENSE_DISTFILES_ISCL=	${DISTNAME}${EXTRACT_SUFX}
 LICENSE_DISTFILES_GPLv2=	${DISTFILE_bash}
 
 USES=		cpe ncurses pkgconfig
+# files/patch-tiparm_s touches configure.ac
+USES+=		autoreconf
 
 CPE_VENDOR=	tmux_project
 
