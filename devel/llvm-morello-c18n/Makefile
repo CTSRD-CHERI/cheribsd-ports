@@ -5,15 +5,13 @@ LLVM_SUFFIX=	-morello-c18n
 COMMENT=	LLVM and Clang with support the Arm Morello architecture
 WWW=		https://git.morello-project.org/morello/llvm-project
 
-LICENSE_FILE_BSD3CLAUSE=${LICENSE_DIR}/utils/unittest/googletest/LICENSE.TXT
-
 DISTINFO_FILE=	${.CURDIR}/distinfo
 DESCR=		${.CURDIR}/pkg-descr
 PLIST=		${.CURDIR}/pkg-plist
 
 USE_GITLAB=	yes
 GL_SITE=	https://git.morello-project.org
-GL_ACCOUNT=	jhb
+GL_ACCOUNT=	morello
 GL_PROJECT=	llvm-project
 GL_TAGNAME=	${LLVM_COMMIT}
 
