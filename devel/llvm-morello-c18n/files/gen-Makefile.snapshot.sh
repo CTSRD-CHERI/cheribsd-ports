@@ -10,7 +10,7 @@ tmpfile=`mktemp -t gen-Makefile.snapshot`
 
 query_repo()
 {
-	curl ${REPOS_URL}%2F$1/repository/branches/c18n_policy > $tmpfile
+	curl ${REPOS_URL}%2F$1/repository/branches/c18n_acl > $tmpfile
 
 	# Accumulate the dates of the last commits to find the snapshot date
 	committime=`jq -r '.commit.committed_date' $tmpfile`
