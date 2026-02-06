@@ -162,6 +162,9 @@ if [ $CHERIBSD_VERSION -gt 0 ]; then
 			if [ "$CHERIBSD_VERSION" -gt 20250127 ]; then
 				codeptr_flags=-cheri-codeptr-relocs
 			fi
+			if [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
+				tls_flags="-cheri-tgot-tls=compat"
+			fi
 			# Some compiler invocations (e.g., "clang -v") don't
 			# consume -Xclang arguments which can lead to unused
 			# argument warnings so we supress them with
@@ -179,12 +182,16 @@ if [ $CHERIBSD_VERSION -gt 0 ]; then
 		fi
 		;;
 	riscv64-*-freebsd*|riscv64-freebsd*)
+		tls_flags=
 		if run_tool llvm-readelf -h ${_SYSROOT}/lib/libc.so.7 | grep "Flags:.*cheriabi" >/dev/null; then
 			mabi=l64pc128d
 		else
 			mabi=lp64d
 		fi
-		arch_cflags="-march=rv64gcxcheri -mabi=$mabi -mno-relax"
+		if [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
+			tls_flags="-cheri-tgot-tls"
+		fi
+		arch_cflags="-march=rv64gcxcheri -mabi=$mabi -mno-relax $tls_flags"
 		;;
 	esac
 	arch_cflags="${arch_cflags} -Wno-implicit-int -Wno-implicit-function-declaration"
