@@ -140,46 +140,44 @@ arch_objdump_flags=
 if [ $CHERIBSD_VERSION -gt 0 ]; then
 	case "$_TARGET" in
 	aarch64-*-freebsd*|aarch64-freebsd*)
+		tls_flags=
+		vararg_flags=
+		memargs_flags=
+		codeptr_flags=
+		capreloc_cflags=
+		capreloc_ldflags=
 		if run_tool llvm-readelf -h ${_SYSROOT}/lib/libc.so.7 | grep "Flags:.*purecap" >/dev/null; then
-			tls_flags=
-			vararg_flags=
-			codeptr_flags=
-			capreloc_cflags=
-			capreloc_ldflags=
-			if [ "$CHERIBSD_VERSION" -le 20220314 ]; then
+			mabi=purecap
+			if [ "$CHERIBSD_VERSION" -lt 20220511 ]; then
 				tls_flags="-femulated-tls"
-			elif [ "$CHERIBSD_VERSION" -le 20220828 ]; then
-				vararg_flags="-Xclang -morello-vararg=new"
-			elif [ "$CHERIBSD_VERSION" -le 20230804 ]; then
-				vararg_flags="-Xclang -morello-vararg=new -Xclang -morello-bounded-memargs=caller-only"
-			else
-				vararg_flags="-Xclang -morello-vararg=new -Xclang -morello-bounded-memargs"
 			fi
-			if [ "$CHERIBSD_VERSION" -ge 20250127 ]; then
-				capreloc_cflags="-Wl,--local-caprelocs=elf"
-				capreloc_ldflags="--local-caprelocs=elf"
-			fi
-			if [ "$CHERIBSD_VERSION" -gt 20250127 ]; then
-				codeptr_flags=-cheri-codeptr-relocs
-			fi
-			if [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
-				tls_flags="-cheri-tgot-tls=compat"
-			fi
-			# Some compiler invocations (e.g., "clang -v") don't
-			# consume -Xclang arguments which can lead to unused
-			# argument warnings so we supress them with
-			# --start/end-no-unused-arguments.
-			arch_cflags="-march=morello -mabi=purecap --start-no-unused-arguments $tls_flags $vararg_flags $capreloc_cflags $codeptr_flags --end-no-unused-arguments"
-			arch_ldflags="$capreloc_ldflags $codeptr_flags"
-			arch_objdump_flags="--mattr=+morello"
 		else
-			vararg_flags=
-			if [ "$CHERIBSD_VERSION" -gt 20220314 ]; then
-				vararg_flags="-Xclang -morello-vararg=new"
-			fi
-			arch_cflags="-march=morello $vararg_flags"
-			arch_objdump_flags="--mattr=+morello"
+			mabi=aapcs
 		fi
+		if [ "$CHERIBSD_VERSION" -ge 20220511 ]; then
+			vararg_flags="-Xclang -morello-vararg=new"
+		fi
+		if [ "$CHERIBSD_VERSION" -ge 20240315 ]; then
+			memargs_flags="-Xclang -morello-bounded-memargs"
+		elif [ "$CHERIBSD_VERSION" -ge 20230804 ]; then
+			memargs_flags="-Xclang -morello-bounded-memargs=caller-only"
+		fi
+		if [ "$CHERIBSD_VERSION" -ge 20250127 ]; then
+			capreloc_cflags="-Wl,--local-caprelocs=elf"
+			capreloc_ldflags="--local-caprelocs=elf"
+		fi
+		if [ "$CHERIBSD_VERSION" -ge 20250301 ]; then
+			codeptr_flags="-cheri-codeptr-relocs"
+		fi
+		if [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
+			tls_flags="-cheri-tgot-tls=compat"
+		fi
+		# Some compiler invocations (e.g., "clang -v") don't consume
+		# -Xclang arguments which can lead to unused argument warnings
+		# so we supress them with --start/end-no-unused-arguments.
+		arch_cflags="-march=morello -mabi=$mabi --start-no-unused-arguments $tls_flags $vararg_flags $memargs_flags $capreloc_cflags $codeptr_flags --end-no-unused-arguments"
+		arch_ldflags="$capreloc_ldflags $codeptr_flags"
+		arch_objdump_flags="--mattr=+morello"
 		;;
 	riscv64-*-freebsd*|riscv64-freebsd*)
 		tls_flags=
