@@ -35,6 +35,7 @@ CMAKE_ON=	WITH_JPEG8
 CMAKE_ARGS=	-DCMAKE_CTEST_ARGUMENTS="-E;'djpeg12-shared-3x2-float-prog-cmp|djpeg12-static-3x2-float-prog-cmp'"
 
 OPTIONS_DEFINE=		DOCS OPTIMIZED_CFLAGS
+OPTIONS_DEFINE_purecap=	C18N
 OPTIONS_DEFAULT=	OPTIMIZED_CFLAGS
 
 OPTIMIZED_CFLAGS_CFLAGS=	-O3
@@ -47,6 +48,11 @@ BUILD_DEPENDS+=	nasm:devel/nasm
 
 .if ${ARCH} == armv6
 CMAKE_OFF=	WITH_SIMD
+.endif
+
+.if ${PORT_OPTIONS:MC18N}
+COMPARTMENT_POLICY?=	${FILESDIR}/libjpeg.c18n
+USES+=		compiler:c18n
 .endif
 
 .if ${SLAVE_PORT} == yes
