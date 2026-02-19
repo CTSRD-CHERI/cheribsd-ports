@@ -175,7 +175,11 @@ if [ $CHERIBSD_VERSION -gt 0 ]; then
 		# Some compiler invocations (e.g., "clang -v") don't consume
 		# -Xclang arguments which can lead to unused argument warnings
 		# so we supress them with --start/end-no-unused-arguments.
-		arch_cflags="-march=morello -mabi=$mabi --start-no-unused-arguments $tls_flags $vararg_flags $memargs_flags $capreloc_cflags $codeptr_flags --end-no-unused-arguments"
+		arch_cflags="-march=morello -mabi=$mabi --start-no-unused-arguments $tls_flags $vararg_flags $memargs_flags $codeptr_flags"
+		# Don't pass linker flags to the preprocessor.
+		arch_cppflags="$arch_cflags --end-no-unused-arguments"
+		# Pass linker flags to the compiler and the linker.
+		arch_cflags="$arch_cflags $capreloc_cflags --end-no-unused-arguments"
 		arch_ldflags="$capreloc_ldflags $codeptr_flags"
 		arch_objdump_flags="--mattr=+morello"
 		;;
@@ -190,14 +194,20 @@ if [ $CHERIBSD_VERSION -gt 0 ]; then
 			tls_flags="-cheri-tgot-tls"
 		fi
 		arch_cflags="-march=rv64gcxcheri -mabi=$mabi -mno-relax $tls_flags"
+		arch_cppflags="$arch_cflags"
 		;;
 	esac
-	arch_cflags="${arch_cflags} -Wno-implicit-int -Wno-implicit-function-declaration"
+	warning_flags="-Wno-implicit-int -Wno-implicit-function-declaration"
+	arch_cflags="$arch_cflags $warning_flags"
+	arch_cppflags="$arch_cppflags $warning_flags"
 fi
 
 case $basetool in
-clang|clang++|clang-cpp)
+clang|clang++)
 	toolflags=$arch_cflags
+	;;
+clang-cpp)
+	toolflags=$arch_cppflags
 	;;
 ld.lld|ld64.lld)
 	toolflags=$arch_ldflags
