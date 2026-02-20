@@ -1,12 +1,14 @@
 --- Makefile.orig
 +++ Makefile
-@@ -6,8 +6,7 @@
- CFLAGS?=-g -O0
+@@ -7,9 +7,8 @@
  CFLAGS+=-Wall -Wcheri
  
--INC=-I/usr/include -I/usr/local/include -I$(DEPS)
+ SRC_BASE?=/usr/src
+-ARCH+=aarch64
+-INC=-I/usr/include -I/usr/local/include -I$(DEPS) -I${SRC_BASE}/libexec/rtld-elf -I${SRC_BASE}/libexec/rtld-elf/${ARCH}
 -LDFLAGS=-L/usr/lib -L/usr/local/lib 
-+INC=-I$(DEPS)
++ARCH?=aarch64
++INC=-I$(DEPS) -I${SRC_BASE}/libexec/rtld-elf -I${SRC_BASE}/libexec/rtld-elf/${ARCH}
  
  .PHONY: all
  .PHONY: make_dir
