@@ -1,0 +1,13 @@
+{
+    "compartments": {
+        "io": {
+            "files": [
+                "*/rd*.c.o",
+                "*/wr*.c.o"
+            ],
+            "symbols": [
+                "fill_input_buffer"
+            ]
+        }
+    }
+}

@@ -1,6 +1,6 @@
---- CMakeLists.txt.orig	2023-02-09 07:01:27 UTC
+--- CMakeLists.txt.orig	2025-03-05 20:47:15 UTC
 +++ CMakeLists.txt
-@@ -393,14 +393,14 @@ if(MSVC)
+@@ -395,14 +395,14 @@ endif()
    add_definitions(-D_CRT_NONSTDC_NO_WARNINGS)
  endif()
  
@@ -23,3 +23,14 @@
  
  if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
    if(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+@@ -688,6 +688,10 @@ if(WITH_TURBOJPEG)
+     if(TJMAPFLAG)
+       set_target_properties(turbojpeg PROPERTIES
+         LINK_FLAGS "${TJMAPFLAG}${TJMAPFILE}")
++    endif()
++    if(DEFINED COMPARTMENT_POLICY)
++      set_target_properties(turbojpeg PROPERTIES
++        LINK_FLAGS "-Wl,--compartment-policy=${COMPARTMENT_POLICY}")
+     endif()
+ 
+     add_executable(tjunittest tjunittest.c tjutil.c md5/md5.c md5/md5hl.c)
