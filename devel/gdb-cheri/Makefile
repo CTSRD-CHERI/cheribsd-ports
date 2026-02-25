@@ -12,9 +12,6 @@ MAINTAINER=	konrad.witaszczyk@cl.cam.ac.uk
 COMMENT?=	GNU Project Debugger with support for the Arm Morello architecture
 WWW=		https://github.com/CTSRD-CHERI/gdb
 
-NOT_FOR_ABIS=	purecap
-NOT_FOR_ABIS_REASON_purecap=is not adapted for CheriABI yet
-
 DATADIR?=	${PREFIX}/share/gdb
 
 # devel/readline defines rl_completer_word_break_characters as const char *.
