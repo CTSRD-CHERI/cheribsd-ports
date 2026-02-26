@@ -1,0 +1,10 @@
+--- if_em.c.orig
++++ if_em.c
+@@ -4482,7 +4482,6 @@ em_setup_receive_ring(struct rx_ring *rxr)
+ 			goto fail;
+ 		}
+ 		rxbuf->m_head->m_len = adapter->rx_mbuf_sz;
+-		rxbuf->m_head->m_flags &= ~M_HASFCS; /* we strip it */
+ 		rxbuf->m_head->m_pkthdr.len = adapter->rx_mbuf_sz;
+ 
+ 		/* Get the memory mapping */
