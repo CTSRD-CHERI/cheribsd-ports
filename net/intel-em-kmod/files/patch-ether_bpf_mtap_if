@@ -1,0 +1,11 @@
+--- if_lem.c.orig
++++ if_lem.c
+@@ -964,7 +964,7 @@ lem_start_locked(if_t ifp)
+ 		}
+ 
+ 		/* Send a copy of the frame to the BPF listener */
+-		if_etherbpfmtap(ifp, m_head);
++		ether_bpf_mtap_if(ifp, m_head);
+ 
+ 		/* Set timeout in case hardware has problems transmitting. */
+ 		adapter->watchdog_check = TRUE;
