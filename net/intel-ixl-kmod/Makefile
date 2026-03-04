@@ -43,6 +43,21 @@ PLIST_FILES+=	man/man4/${link}.4.gz
 
 MAX_NETMAP_OSVERSION?=	1200500  # Maximum OSVERSION for which NETMAP support works
 
+.if ${PORTNAME} == em
+OPTIONS_DEFINE_purecap=	C18N
+.endif
+
+.include <bsd.port.options.mk>
+
+.if ${PORT_OPTIONS:MC18N}
+.if ${PORTNAME} == em
+COMPARTMENT_POLICY?=	${PATCHDIR}/if_em.c18n
+.endif
+MAKE_ENV+=		CHERI_COMPARTMENT_POLICY=1
+MAKE_ENV+=		COMPARTMENT_POLICY="${COMPARTMENT_POLICY}"
+USES+=			compiler:c18n
+.endif
+
 .include <bsd.port.pre.mk>
 
 # Fixup for slave ports that use this as a master port. sbruno
