@@ -209,6 +209,7 @@ BUILD_DEPENDS+=	clang${_LLVM_REQ}:devel/llvm${_LLVM_REQ}
 CPP=	${LOCALBASE64}/bin/clang-cpp${_LLVM_REQ}
 CC=	${LOCALBASE64}/bin/clang${_LLVM_REQ}
 CXX=	${LOCALBASE64}/bin/clang++${_LLVM_REQ}
+LD=	${LOCALBASE64}/bin/ld.lld${_LLVM_REQ}
 CHOSEN_COMPILER_TYPE=	clang
 .      endif
 .    endif
