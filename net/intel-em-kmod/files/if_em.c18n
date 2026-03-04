@@ -1,0 +1,48 @@
+{
+	"compartments": {
+		"interface": {
+			"files": [
+				"em_compat.o",
+				"if_em.o",
+				"if_lem.o"
+			]
+		},
+		"controller": {
+			"files": [
+				"e1000_82540.o",
+				"e1000_82542.o",
+				"e1000_82541.o",
+				"e1000_82543.o",
+				"e1000_82571.o",
+				"e1000_80003es2lan.o",
+				"e1000_ich8lan.o"
+			]
+		},
+		"api": {
+			"files": [
+				"e1000_api.o",
+				"e1000_manage.o"
+			]
+		},
+		"mac": {
+			"files": [
+				"e1000_mac.o"
+			]
+		},
+		"phy": {
+			"files": [
+				"e1000_phy.o"
+			]
+		},
+		"nvm": {
+			"files": [
+				"e1000_nvm.o"
+			]
+		},
+		"pci": {
+			"files": [
+				"e1000_osdep.o"
+			]
+		}
+	}
+}
