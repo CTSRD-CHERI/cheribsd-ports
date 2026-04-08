@@ -369,6 +369,7 @@
     SUBDIR += check
     SUBDIR += checkbashisms
     SUBDIR += checkheaders
+    SUBDIR += cheritree
     SUBDIR += chroma
     SUBDIR += chrpath
     SUBDIR += chruby
