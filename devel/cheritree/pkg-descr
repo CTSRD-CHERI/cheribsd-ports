@@ -1,0 +1,7 @@
+CheriTree provides a library to help understand the impact of library
+compartmentalisation on an application. It prints a capability derivation tree
+for the running application, by recursively searching through the registers and
+stack, looking for all valid capabilities.
+
+rtegrity has developed the project as part of the Digital Security by Design
+Technology Access Program.
