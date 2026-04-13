@@ -20,3 +20,23 @@
      return sizeof(IntervalListSet) + nIntervals * sizeof(RecordSetInterval);
  }
  
+--- hw/xfree86/drivers/modesetting/vblank.c.orig	2026-04-13 08:42:43.569096000 +0100
++++ hw/xfree86/drivers/modesetting/vblank.c	2026-04-13 08:43:37.017670000 +0100
+@@ -496,7 +496,7 @@
+  * drm event queue and calls the handler for it.
+  */
+ static void
+-ms_drm_sequence_handler(int fd, uint64_t frame, uint64_t ns, Bool is64bit, uint64_t user_data)
++ms_drm_sequence_handler(int fd, uint64_t frame, uint64_t ns, Bool is64bit, drm_uptr_t user_data)
+ {
+     struct ms_drm_queue *q, *tmp;
+     uint32_t seq = (uint32_t) user_data;
+@@ -515,7 +515,7 @@
+ }
+ 
+ static void
+-ms_drm_sequence_handler_64bit(int fd, uint64_t frame, uint64_t ns, uint64_t user_data)
++ms_drm_sequence_handler_64bit(int fd, uint64_t frame, uint64_t ns, drm_uptr_t user_data)
+ {
+     /* frame is true 64 bit wrapped into 64 bit */
+     ms_drm_sequence_handler(fd, frame, ns, TRUE, user_data);
