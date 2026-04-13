@@ -23,10 +23,6 @@ USES=		gettext gnome localbase meson pkgconfig python:build tar:xz vala:build
 USE_CSTD=	c99
 USE_GNOME=	glib20 libxslt:build
 USE_LDCONFIG=	yes
-.if ${/usr/bin/ld:L:tA} != /usr/bin/ld.lld
-USE_BINUTILS=	yes
-LDFLAGS+=	-B${LOCALBASE}/bin
-.endif
 BINARY_ALIAS=	python3=${PYTHON_VERSION}
 
 MESON_ARGS=	-Dman=true \
