@@ -17,8 +17,8 @@ GH_TAGNAME=	${CHERITREE_COMMIT}
 
 PLIST=
 PLIST_FILES=	include/cheritree.h \
-		lib/cheritree.so \
-		lib/cheritreestub.a \
+		lib/libcheritree.so \
+		lib/libcheritreestub.a \
 		share/examples/${PORTNAME}/visualize.py
 
 .include "Makefile.snapshot"
@@ -31,7 +31,7 @@ IGNORE=		pure capability program
 
 do-install:
 	${INSTALL_DATA} ${WRKSRC}/src/cheritree.h ${STAGEDIR}${PREFIX}/include
-	${INSTALL_PROGRAM} ${WRKSRC}/cheritree.so ${WRKSRC}/cheritreestub.a \
+	${INSTALL_PROGRAM} ${WRKSRC}/libcheritree.so ${WRKSRC}/libcheritreestub.a \
 	    ${STAGEDIR}${PREFIX}/lib/
 	${MKDIR} ${STAGEDIR}${EXAMPLESDIR}
 	${INSTALL_SCRIPT} ${WRKSRC}/visualizer/visualize.py \
