@@ -193,6 +193,7 @@
     SUBDIR += chaoskube
     SUBDIR += checkrestart
     SUBDIR += cheri-vm-support
+    SUBDIR += cheribsd-update
     SUBDIR += chericat
     SUBDIR += chezmoi
     SUBDIR += chgrep
