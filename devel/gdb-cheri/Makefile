@@ -18,6 +18,10 @@ DATADIR?=	${PREFIX}/share/gdb
 OPTIONS_DEFAULT+=BUNDLED_READLINE
 OPTIONS_EXCLUDE+=PORT_READLINE
 
+# There is no pure-capability Python yet. We must disable Python support for
+# purecap because GDB links with Python libraries.
+OPTIONS_EXCLUDE_purecap+=	PYTHON
+
 # CTSRD-CHERI/gdb does not include gdb.1.
 GDB1_SRC=	${FILESDIR}/gdb.1
 # CTSRD-CHERI/gdb does include kgdb.1.
