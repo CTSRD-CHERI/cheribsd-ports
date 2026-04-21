@@ -220,19 +220,6 @@ TEST_ALL_TARGET=	${TEST_TARGETS}
 IGNORE=		you have selected HEIMDAL_BASE but do not have Heimdal installed in base
 .endif
 
-.if ${COMPILER_VERSION} < 160
-LLVM_DEFAULT=		16
-BUILD_DEPENDS+=		clang${LLVM_DEFAULT}:devel/llvm${LLVM_DEFAULT}
-AR=			${LOCALBASE}/bin/llvm-ar${LLVM_DEFAULT}
-CC=			${LOCALBASE}/bin/clang${LLVM_DEFAULT}
-CPP=			${LOCALBASE}/bin/clang-cpp${LLVM_DEFAULT}
-CXX=			${LOCALBASE}/bin/clang++${LLVM_DEFAULT}
-LD=			${LOCALBASE}/bin/ld.lld${LLVM_DEFAULT}
-NM=			${LOCALBASE}/bin/llvm-nm${LLVM_DEFAULT}
-.else
-AR=/usr/bin/llvm-ar
-NM=/usr/bin/llvm-nm
-.endif
 BINARY_ALIAS+=		ar=${AR} \
 			c++=${CXX} \
 			cc=${CC} \
