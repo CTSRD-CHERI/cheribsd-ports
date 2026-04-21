@@ -1,0 +1,5 @@
+TIMESTAMP = 1776776622
+SHA256 (kernel.txz) = 2f836223ec1cbe7a60933a7b44e3f2c41fa1cdfe9e9251d00391bff3e5c1364d
+SIZE (kernel.txz) = 29767880
+SHA256 (kernel-dbg.txz) = d77b2493e7db5774b88e635fb633ea8c014a8a3201c1dbc23d873764b3870009
+SIZE (kernel-dbg.txz) = 64968700
