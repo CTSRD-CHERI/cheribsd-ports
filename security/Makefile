@@ -252,6 +252,7 @@
     SUBDIR += keepass
     SUBDIR += keepass-plugin-keepassrpc
     SUBDIR += keepassxc
+    SUBDIR += kernel-c18n
     SUBDIR += keybase
     SUBDIR += keychain
     SUBDIR += keyprint

@@ -1,0 +1,10 @@
+The kernel compartmentalization model isolates parts of the kernel and kernel
+modules according to their link-time policies. The compartmentalized kernel
+included in this package is equivalent to GENERIC-MORELLO-PURECAP with the
+addition of the kernel compartmentalization mechanism.
+
+This experimental kernel is currently developed in the separate kernel-c18n
+branch of CheriBSD [1] with its own snapshots [2].
+
+[1] https://github.com/CTSRD-CHERI/cheribsd/tree/kernel-c18n
+[2] https://download.cheribsd.org/snapshots/kernel-c18n/arm64/aarch64c/
