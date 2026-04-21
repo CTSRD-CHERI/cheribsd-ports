@@ -15,6 +15,10 @@ WWW=		https://github.com/CTSRD-CHERI/gdb
 .ifndef SLAVE_PORT
 NOT_FOR_ABIS=	purecap
 NOT_FOR_ABIS_REASON_purecap=is not adapted for CheriABI yet
+
+# Configure the Poudriere toolchain wrapper to build the port for hybrid.
+CONFIGURE_ENV+=	MACHINE_ARCH_HYBRID=yes
+MAKE_ENV+=	MACHINE_ARCH_HYBRID=yes
 .endif
 
 DATADIR?=	${PREFIX}/share/gdb
