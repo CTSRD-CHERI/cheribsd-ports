@@ -22,6 +22,7 @@
     SUBDIR += flowgrind
     SUBDIR += forkbomb
     SUBDIR += glmark2
+    SUBDIR += grpc-qps
     SUBDIR += gtkperf
     SUBDIR += hey
     SUBDIR += himenobench
