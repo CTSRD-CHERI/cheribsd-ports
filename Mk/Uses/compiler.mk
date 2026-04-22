@@ -202,6 +202,9 @@ CHOSEN_COMPILER_TYPE=	clang
 _LLVM_REQ=	${_LLVM_MINVER}
 .        elif ${_COMPILER_ARGS:Mc18n}
 _LLVM_REQ=	-morello-c18n
+C18N_FLAGS?=	-fdata-sections -ffunction-sections
+CFLAGS+=	${C18N_FLAGS}
+CXXFLAGS+=	${C18N_FLAGS}
 .        else
 _LLVM_REQ=	${LLVM_DEFAULT}
 .        endif
