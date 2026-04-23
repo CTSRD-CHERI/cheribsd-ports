@@ -274,6 +274,14 @@ MAN3PREFIX?=		${PREFIX}/${SITE_PERL_REL}
 MAN1PREFIX?=		${PREFIX}/${SITE_PERL_REL}
 .undef HAS_CONFIGURE
 
+_USES_patch+=	650:post-patch-perl-makefile
+.    if !target(post-patch-perl-makefile)
+post-patch-perl-makefile:
+	@for f in `${FIND} ${WRKDIR} -type f -name Makefile.PL` ; do \
+		${REINPLACE_CMD} -e 's|"$$prefix/lib64"|"$$prefix/lib"|g' $${f} ; \
+	done
+.    endif
+
 .    if !target(do-configure)
 do-configure:
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
