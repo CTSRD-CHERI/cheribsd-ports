@@ -1,0 +1,56 @@
+--- cursor/parse_cursor_file.c.orig	2026-04-29 19:50:25 UTC
++++ cursor/parse_cursor_file.c
+@@ -58,6 +58,14 @@
+ #include "cursor.h"
+ #include "xcb_cursor.h"
+ 
++typedef struct xcint_image_file_t {
++    uint32_t width;
++    uint32_t height;
++    uint32_t xhot;
++    uint32_t yhot;
++    uint32_t delay;
++} __attribute__((packed)) xcint_image_file_t;
++
+ static uint32_t dist(const uint32_t a, const uint32_t b) {
+     return (a > b ? (a - b) : (b - a));
+ }
+@@ -140,6 +148,7 @@ int parse_cursor_file(xcb_cursor_context_t *c, const i
+ 
+     for (int n = 0; n < cf.header.ntoc; n++) {
+         xcint_chunk_header_t chunk;
++        xcint_image_file_t f;
+         /* for convenience */
+         xcint_image_t *i = &((*images)[cnt]);
+         uint32_t numpixels = 0;
+@@ -160,13 +169,13 @@ int parse_cursor_file(xcb_cursor_context_t *c, const i
+         if (chunk.type != cf.tocs[n].type ||
+             chunk.subtype != cf.tocs[n].subtype)
+             goto error2;
+-        if (!read_entirely(fd, i, sizeof(xcint_image_t) - sizeof(uint32_t*))) // TODO: better type
++        if (!read_entirely(fd, &f, sizeof(f)))
+             goto error2;
+-        i->width = le32toh(i->width);
+-        i->height = le32toh(i->height);
+-        i->xhot = le32toh(i->xhot);
+-        i->yhot = le32toh(i->yhot);
+-        i->delay = le32toh(i->delay);
++        i->width = le32toh(f.width);
++        i->height = le32toh(f.height);
++        i->xhot = le32toh(f.xhot);
++        i->yhot = le32toh(f.yhot);
++        i->delay = le32toh(f.delay);
+ 
+         /* Read the actual image data and convert it to host byte order */
+         /* Catch integer overflows */
+--- cursor/cursor.h.orig	2026-04-29 20:45:27 UTC
++++ cursor/cursor.h
+@@ -158,7 +158,7 @@ typedef struct xcint_image_t {
+     uint32_t yhot;
+     uint32_t delay;
+     uint32_t *pixels;
+-} __attribute__((packed)) xcint_image_t;
++} xcint_image_t;
+ 
+ /* shape_to_id.c */
+ int cursor_shape_to_id(const char *name);
