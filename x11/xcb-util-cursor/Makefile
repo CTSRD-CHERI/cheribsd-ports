@@ -1,5 +1,6 @@
 PORTNAME=	xcb-util-cursor
 PORTVERSION=	0.1.3
+PORTREVISION=	1
 CATEGORIES=	x11
 MASTER_SITES=	http://xcb.freedesktop.org/dist/
 
