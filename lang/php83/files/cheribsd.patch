@@ -1,0 +1,2986 @@
+diff --git Zend/Optimizer/dfa_pass.c Zend/Optimizer/dfa_pass.c
+index b1f568da5d9..3457941d0de 100644
+--- Zend/Optimizer/dfa_pass.c
++++ Zend/Optimizer/dfa_pass.c
+@@ -430,7 +430,7 @@ int zend_dfa_optimize_calls(zend_op_array *op_array, zend_ssa *ssa)
+ 					HashTable *src = Z_ARRVAL_P(CT_CONSTANT_EX(op_array, send_array->op1.constant));
+ 					HashTable *dst;
+ 					zval *val, tmp;
+-					zend_ulong idx;
++					HT_KEY_TYPE idx;
+ 
+ 					ZVAL_TRUE(&tmp);
+ 					dst = zend_new_array(zend_hash_num_elements(src));
+diff --git Zend/Optimizer/zend_optimizer.c Zend/Optimizer/zend_optimizer.c
+index cf1c98c64bb..f074909e959 100644
+--- Zend/Optimizer/zend_optimizer.c
++++ Zend/Optimizer/zend_optimizer.c
+@@ -572,7 +572,7 @@ bool zend_optimizer_update_op2_const(zend_op_array *op_array,
+ 		case ZEND_FETCH_LIST_R:
+ 		case ZEND_FETCH_LIST_W:
+ 			if (Z_TYPE_P(val) == IS_STRING) {
+-				zend_ulong index;
++				HT_KEY_TYPE index;
+ 
+ 				if (ZEND_HANDLE_NUMERIC(Z_STR_P(val), index)) {
+ 					ZVAL_LONG(&tmp, index);
+@@ -588,7 +588,7 @@ bool zend_optimizer_update_op2_const(zend_op_array *op_array,
+ 		case ZEND_ADD_ARRAY_ELEMENT:
+ 		case ZEND_INIT_ARRAY:
+ 			if (Z_TYPE_P(val) == IS_STRING) {
+-				zend_ulong index;
++				HT_KEY_TYPE index;
+ 				if (ZEND_HANDLE_NUMERIC(Z_STR_P(val), index)) {
+ 					zval_ptr_dtor_nogc(val);
+ 					ZVAL_LONG(val, index);
+diff --git Zend/asm/jump_arm64_morello_elf_gas.S Zend/asm/jump_arm64_morello_elf_gas.S
+new file mode 100644
+index 00000000000..7f2eceecbfe
+--- /dev/null
++++ Zend/asm/jump_arm64_morello_elf_gas.S
+@@ -0,0 +1,135 @@
++/*
++       Copyright Edward Nevill + Oliver Kowalke 2015
++   Distributed under the Boost Software License, Version 1.0.
++      (See accompanying file LICENSE_1_0.txt or copy at
++          http://www.boost.org/LICENSE_1_0.txt)
++*/
++/*******************************************************
++ *                                                     *
++ *  -------------------------------------------------  *
++ *  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  *
++ *  -------------------------------------------------  *
++ *  | 0x0 | 0x4 | 0x8 | 0xc | 0x10| 0x14| 0x18| 0x1c|  *
++ *  -------------------------------------------------  *
++ *  |    d8     |    d9     |    d10    |    d11    |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |  15 |  *
++ *  -------------------------------------------------  *
++ *  | 0x20| 0x24| 0x28| 0x2c| 0x30| 0x34| 0x38| 0x3c|  *
++ *  -------------------------------------------------  *
++ *  |    d12    |    d13    |    d14    |    d15    |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  *
++ *  -------------------------------------------------  *
++ *  | 0x40| 0x44| 0x48| 0x4c| 0x50| 0x54| 0x58| 0x5c|  *
++ *  -------------------------------------------------  *
++ *  |          c19          |          c20          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  24 |  25 |  26 |  27 |  28 |  29 |  30 |  31 |  *
++ *  -------------------------------------------------  *
++ *  | 0x60| 0x64| 0x68| 0x6c| 0x70| 0x74| 0x78| 0x7c|  *
++ *  -------------------------------------------------  *
++ *  |          c21          |          c22          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  32 |  33 |  34 |  35 |  36 |  37 |  38 |  39 |  *
++ *  -------------------------------------------------  *
++ *  | 0x80| 0x84| 0x88| 0x8c| 0x90| 0x94| 0x98| 0x9c|  *
++ *  -------------------------------------------------  *
++ *  |          c23          |          c24          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  40 |  41 |  42 |  43 |  44 |  45 |  46 |  47 |  *
++ *  -------------------------------------------------  *
++ *  | 0xa0| 0xa4| 0xa8| 0xac| 0xb0| 0xb4| 0xb8| 0xbc|  *
++ *  -------------------------------------------------  *
++ *  |          c25          |          c26          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  48 |  49 |  50 |  51 |  52 |  53 |  54 |  55 |  *
++ *  -------------------------------------------------  *
++ *  | 0xc0| 0xc4| 0xc8| 0xcc| 0xd0| 0xd4| 0xd8| 0xdc|  *
++ *  -------------------------------------------------  *
++ *  |          c27          |          c28          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  56 |  57 |  58 |  59 |  60 |  61 |  62 |  63 |  *
++ *  -------------------------------------------------  *
++ *  | 0xe0| 0xe4| 0xe8| 0xec| 0xf0| 0xf4| 0xf8| 0xfc|  *
++ *  -------------------------------------------------  *
++ *  |           FP          |           LR          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  64 |  65 |  66 | 67  |           |           |  *
++ *  -------------------------------------------------  *
++ *  |0x100|0x104|0x108|0x10c|           |           |  *
++ *  -------------------------------------------------  *
++ *  |           PC          |                       |  *
++ *  -------------------------------------------------  *
++ *                                                     *
++ *******************************************************/
++
++.file "jump_arm64_aapcs_elf_gas.S"
++.text
++.align  2
++.global jump_fcontext
++.type   jump_fcontext, %function
++jump_fcontext:
++    # prepare stack for GP + FPU
++    sub  csp, csp, #0x110
++
++    # save d8 - d15
++    stp  d8,  d9,  [csp, #0x00]
++    stp  d10, d11, [csp, #0x10]
++    stp  d12, d13, [csp, #0x20]
++    stp  d14, d15, [csp, #0x30]
++
++    # save x19-x30
++    stp  c19, c20, [csp, #0x40]
++    stp  c21, c22, [csp, #0x60]
++    stp  c23, c24, [csp, #0x80]
++    stp  c25, c26, [csp, #0xa0]
++    stp  c27, c28, [csp, #0xc0]
++    stp  c29, c30, [csp, #0xe0]
++
++    # save LR as PC
++    str  c30, [csp, #0x100]
++
++    # store RSP (pointing to context-data) in C0
++    mov  c4, csp
++
++    # restore RSP (pointing to context-data) from C1
++    mov  csp, c0
++
++    # load d8 - d15
++    ldp  d8,  d9,  [csp, #0x00]
++    ldp  d10, d11, [csp, #0x10]
++    ldp  d12, d13, [csp, #0x20]
++    ldp  d14, d15, [csp, #0x30]
++
++    # load x19-x30
++    ldp  c19, c20, [csp, #0x40]
++    ldp  c21, c22, [csp, #0x60]
++    ldp  c23, c24, [csp, #0x80]
++    ldp  c25, c26, [csp, #0xa0]
++    ldp  c27, c28, [csp, #0xc0]
++    ldp  c29, c30, [csp, #0xe0]
++
++    # return transfer_t from jump
++    # pass transfer_t as first arg in context function
++    # C0 == FCTX, C1 == DATA
++    mov c0, c4
++
++    # load pc
++    ldr  c4, [csp, #0x100]
++
++    # restore stack from GP + FPU
++    add  csp, csp, #0x110
++
++    ret c4
++.size   jump_fcontext,.-jump_fcontext
++# Mark that we don't need executable stack.
++.section .note.GNU-stack,"",%progbits
+diff --git Zend/asm/make_arm64_morello_elf_gas.S Zend/asm/make_arm64_morello_elf_gas.S
+new file mode 100644
+index 00000000000..00784141c4c
+--- /dev/null
++++ Zend/asm/make_arm64_morello_elf_gas.S
+@@ -0,0 +1,106 @@
++/*
++            Copyright Edward Nevill + Oliver Kowalke 2015
++   Distributed under the Boost Software License, Version 1.0.
++      (See accompanying file LICENSE_1_0.txt or copy at
++          http://www.boost.org/LICENSE_1_0.txt)
++*/
++/*******************************************************
++ *                                                     *
++ *  -------------------------------------------------  *
++ *  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  *
++ *  -------------------------------------------------  *
++ *  | 0x0 | 0x4 | 0x8 | 0xc | 0x10| 0x14| 0x18| 0x1c|  *
++ *  -------------------------------------------------  *
++ *  |    d8     |    d9     |    d10    |    d11    |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |  15 |  *
++ *  -------------------------------------------------  *
++ *  | 0x20| 0x24| 0x28| 0x2c| 0x30| 0x34| 0x38| 0x3c|  *
++ *  -------------------------------------------------  *
++ *  |    d12    |    d13    |    d14    |    d15    |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  *
++ *  -------------------------------------------------  *
++ *  | 0x40| 0x44| 0x48| 0x4c| 0x50| 0x54| 0x58| 0x5c|  *
++ *  -------------------------------------------------  *
++ *  |          x19          |          x20          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  24 |  25 |  26 |  27 |  28 |  29 |  30 |  31 |  *
++ *  -------------------------------------------------  *
++ *  | 0x60| 0x64| 0x68| 0x6c| 0x70| 0x74| 0x78| 0x7c|  *
++ *  -------------------------------------------------  *
++ *  |          x21          |          x22          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  32 |  33 |  34 |  35 |  36 |  37 |  38 |  39 |  *
++ *  -------------------------------------------------  *
++ *  | 0x80| 0x84| 0x88| 0x8c| 0x90| 0x94| 0x98| 0x9c|  *
++ *  -------------------------------------------------  *
++ *  |          x23          |          x24          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  40 |  41 |  42 |  43 |  44 |  45 |  46 |  47 |  *
++ *  -------------------------------------------------  *
++ *  | 0xa0| 0xa4| 0xa8| 0xac| 0xb0| 0xb4| 0xb8| 0xbc|  *
++ *  -------------------------------------------------  *
++ *  |          x25          |          x26          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  48 |  49 |  50 |  51 |  52 |  53 |  54 |  55 |  *
++ *  -------------------------------------------------  *
++ *  | 0xc0| 0xc4| 0xc8| 0xcc| 0xd0| 0xd4| 0xd8| 0xdc|  *
++ *  -------------------------------------------------  *
++ *  |          x27          |          x28          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  56 |  57 |  58 |  59 |  60 |  61 |  62 |  63 |  *
++ *  -------------------------------------------------  *
++ *  | 0xe0| 0xe4| 0xe8| 0xec| 0xf0| 0xf4| 0xf8| 0xfc|  *
++ *  -------------------------------------------------  *
++ *  |           FP          |           LR          |  *
++ *  -------------------------------------------------  *
++ *  -------------------------------------------------  *
++ *  |  64 |  65 |  66 | 67  |           |           |  *
++ *  -------------------------------------------------  *
++ *  |0x100|0x104|0x108|0x10c|           |           |  *
++ *  -------------------------------------------------  *
++ *  |           PC          |                       |  *
++ *  -------------------------------------------------  *
++ *                                                     *
++ *******************************************************/
++
++.file "make_arm64_aapcs_elf_gas.S"
++.text
++.align  2
++.global make_fcontext
++.type   make_fcontext, %function
++make_fcontext:
++    # shift address in c0 (allocated stack) to lower 16 byte boundary
++    alignd c0, c0, #4
++
++    # reserve space for context-data on context-stack
++    sub  c0, c0, #0x110
++
++    # third arg of make_fcontext() == address of context-function
++    # store address as a PC to jump in
++    str  c2, [c0, #0x100]
++
++    # save address of finish as return-address for context-function
++    # will be entered after context-function returns (LR register)
++    adr  c1, finish
++    str  c1, [c0, #0xf0]
++
++    ret  c30 // return pointer to context-data (c0)
++
++finish:
++    # exit code is zero
++    mov  x0, #0
++    # exit application
++    bl  _exit
++
++.size   make_fcontext,.-make_fcontext
++# Mark that we don't need executable stack.
++.section .note.GNU-stack,"",%progbits
+diff --git Zend/zend_API.c Zend/zend_API.c
+index 02b015c43b6..73007788939 100644
+--- Zend/zend_API.c
++++ Zend/zend_API.c
+@@ -5112,7 +5112,7 @@ ZEND_API zend_result zend_get_default_from_internal_arg_info(
+ 
+ 	/* Avoid going through the full AST machinery for some simple and common cases. */
+ 	size_t default_value_len = strlen(default_value);
+-	zend_ulong lval;
++	HT_KEY_TYPE lval;
+ 	if (default_value_len == sizeof("null")-1
+ 			&& !memcmp(default_value, "null", sizeof("null")-1)) {
+ 		ZVAL_NULL(default_value_zval);
+diff --git Zend/zend_alloc.c Zend/zend_alloc.c
+index bf2116fc91f..48f9b8a0839 100644
+--- Zend/zend_alloc.c
++++ Zend/zend_alloc.c
+@@ -150,12 +150,25 @@ static size_t _real_page_size = ZEND_MM_PAGE_SIZE;
+ typedef uint32_t   zend_mm_page_info; /* 4-byte integer */
+ typedef zend_ulong zend_mm_bitset;    /* 4-byte or 8-byte integer */
+ 
+-#define ZEND_MM_ALIGNED_OFFSET(size, alignment) \
++#ifdef PHP_HAVE_BUILTIN_ALIGN_DOWN
++# define ZEND_MM_ALIGNED_OFFSET(size, alignment) \
++	(((size_t)(size)) - (size_t)__builtin_align_down((size), (alignment)))
++# define ZEND_MM_ALIGNED_BASE(ptr, alignment) \
++	__builtin_align_down((ptr), (alignment))
++#else
++# define ZEND_MM_ALIGNED_OFFSET(size, alignment) \
+ 	(((size_t)(size)) & ((alignment) - 1))
+-#define ZEND_MM_ALIGNED_BASE(size, alignment) \
+-	(((size_t)(size)) & ~((alignment) - 1))
+-#define ZEND_MM_SIZE_TO_NUM(size, alignment) \
++# define ZEND_MM_ALIGNED_BASE(ptr, alignment) \
++	(((uintptr_t)(ptr)) & ~((alignment) - 1))
++#endif
++
++#ifdef PHP_HAVE_BUILTIN_ALIGN_UP
++# define ZEND_MM_SIZE_TO_NUM(size, alignment) \
++	(__builtin_align_up((size), (alignment)) / (alignment))
++#else
++# define ZEND_MM_SIZE_TO_NUM(size, alignment) \
+ 	(((size_t)(size) + ((alignment) - 1)) / (alignment))
++#endif
+ 
+ #define ZEND_MM_BITSET_LEN		(sizeof(zend_mm_bitset) * 8)       /* 32 or 64 */
+ #define ZEND_MM_PAGE_MAP_LEN	(ZEND_MM_PAGES / ZEND_MM_BITSET_LEN) /* 16 or 8 */
+@@ -314,6 +327,9 @@ struct _zend_mm_huge_list {
+ 	void              *ptr;
+ 	size_t             size;
+ 	zend_mm_huge_list *next;
++#ifdef __CHERI_PURE_CAPABILITY__
++	void		  *extendible;
++#endif
+ #if ZEND_DEBUG
+ 	zend_mm_debug_info dbg;
+ #endif
+@@ -714,9 +730,23 @@ static zend_always_inline void zend_mm_hugepage(void* ptr, size_t size)
+ #endif
+ }
+ 
++
++#ifdef __CHERI_PURE_CAPABILITY__
++/*
++ * Current chunk extension code doesn't work well with cheri purecap,
++ * so just map a larger region in advance.
++ * */
++# define CHUNK_PREALLOCATE_FACTOR 64
++#endif
++
+ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
+ {
++#ifdef __CHERI_PURE_CAPABILITY__
++	/* With cheri capabilities, we cannot extend, so preallocate a larger map */
++	void *ptr = zend_mm_mmap(size * CHUNK_PREALLOCATE_FACTOR);
++#else
+ 	void *ptr = zend_mm_mmap(size);
++#endif
+ 
+ 	if (ptr == NULL) {
+ 		return NULL;
+@@ -730,7 +760,11 @@ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
+ 
+ 		/* chunk has to be aligned */
+ 		zend_mm_munmap(ptr, size);
++#ifdef __CHERI_PURE_CAPABILITY__
++		ptr = zend_mm_mmap(CHUNK_PREALLOCATE_FACTOR * size + alignment - REAL_PAGE_SIZE);
++#else
+ 		ptr = zend_mm_mmap(size + alignment - REAL_PAGE_SIZE);
++#endif
+ #ifdef _WIN32
+ 		offset = ZEND_MM_ALIGNED_OFFSET(ptr, alignment);
+ 		if (offset != 0) {
+@@ -768,13 +802,21 @@ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
+ 	}
+ }
+ 
++#if __CHERI_PURE_CAPABILITY__
++# include <cheriintrin.h>
++#endif
++
+ static void *zend_mm_chunk_alloc(zend_mm_heap *heap, size_t size, size_t alignment)
+ {
+ #if ZEND_MM_STORAGE
+ 	if (UNEXPECTED(heap->storage)) {
+ 		void *ptr = heap->storage->handlers.chunk_alloc(heap->storage, size, alignment);
+ 		ZEND_ASSERT(((uintptr_t)((char*)ptr + (alignment-1)) & (alignment-1)) == (uintptr_t)ptr);
++# ifdef __CHERI_PURE_CAPABILITY
++		return cheri_bounds_set(ptr, size);
++# else
+ 		return ptr;
++# endif
+ 	}
+ #endif
+ 	return zend_mm_chunk_alloc_int(size, alignment);
+@@ -810,14 +852,17 @@ static int zend_mm_chunk_truncate(zend_mm_heap *heap, void *addr, size_t old_siz
+ #endif
+ }
+ 
+-static int zend_mm_chunk_extend(zend_mm_heap *heap, void *addr, size_t old_size, size_t new_size)
++static void* zend_mm_chunk_extend(zend_mm_heap *heap, void *addr, size_t old_size, size_t new_size)
+ {
+ #if ZEND_MM_STORAGE
+ 	if (UNEXPECTED(heap->storage)) {
+ 		if (heap->storage->handlers.chunk_extend) {
+-			return heap->storage->handlers.chunk_extend(heap->storage, addr, old_size, new_size);
++#ifdef __CHERI_PURE_CAPABILITY__
++			fprintf(stderr, "Custom chunk_extend handler is not supported on pure capability CHERI");
++#endif
++			return heap->storage->handlers.chunk_extend(heap->storage, addr, old_size, new_size) ? addr : NULL;
+ 		} else {
+-			return 0;
++			return NULL;
+ 		}
+ 	}
+ #endif
+@@ -825,16 +870,31 @@ static int zend_mm_chunk_extend(zend_mm_heap *heap, void *addr, size_t old_size,
+ 	/* We don't use MREMAP_MAYMOVE due to alignment requirements. */
+ 	void *ptr = mremap(addr, old_size, new_size, 0);
+ 	if (ptr == MAP_FAILED) {
+-		return 0;
++		return NULL;
+ 	}
+ 	/* Sanity check: The mapping shouldn't have moved. */
+ 	ZEND_ASSERT(ptr == addr);
+-	return 1;
++	return ptr;
+ #elif !defined(_WIN32)
+-	return (zend_mm_mmap_fixed((char*)addr + old_size, new_size - old_size) != NULL);
+-#else
+-	return 0;
++# ifdef __CHERI_PURE_CAPABILITY__
++	for (zend_mm_huge_list *huge = heap->huge_list; huge != NULL; huge = huge->next) {
++		char *base = (char *)huge->ptr;
++		char *end  = base + cheri_length_get(base);
++		char *p    = (char *)addr;
++		if (p >= base && p < end) {
++			addr = cheri_address_set(huge->extendible, cheri_address_get(addr));
++		}
++	}
++# endif
++	void* extension = zend_mm_mmap_fixed((char*)addr + old_size, new_size - old_size);
++	if (extension != NULL) {
++# ifdef __CHERI_PURE_CAPABILITY__
++		addr = cheri_bounds_set(addr, new_size);
++# endif
++		return addr;
++	}
+ #endif
++	return NULL;
+ }
+ 
+ static zend_always_inline void zend_mm_chunk_init(zend_mm_heap *heap, zend_mm_chunk *chunk)
+@@ -1052,6 +1112,10 @@ static void *zend_mm_alloc_pages(zend_mm_heap *heap, uint32_t pages_count ZEND_F
+ 				heap->peak_chunks_count = heap->chunks_count;
+ 			}
+ 			zend_mm_chunk_init(heap, chunk);
++#ifdef __CHERI_PURE_CAPABILITY__
++			chunk = cheri_bounds_set(chunk, ZEND_MM_CHUNK_SIZE);
++#endif
++
+ 			page_num = ZEND_MM_FIRST_PAGE;
+ 			len = ZEND_MM_PAGES - ZEND_MM_FIRST_PAGE;
+ 			goto found;
+@@ -1078,7 +1142,15 @@ static void *zend_mm_alloc_pages(zend_mm_heap *heap, uint32_t pages_count ZEND_F
+ 	if (page_num == chunk->free_tail) {
+ 		chunk->free_tail = page_num + pages_count;
+ 	}
++#ifdef __CHERI_PURE_CAPABILITY__
++	void *ptr = ZEND_MM_PAGE_ADDR(chunk, page_num);
++	// rebase at current address
++	ptr = cheri_address_set(ptr, cheri_address_get(ptr));
++	ptr = cheri_bounds_set(ptr, pages_count * ZEND_MM_PAGE_SIZE);
++	return ptr;
++#else
+ 	return ZEND_MM_PAGE_ADDR(chunk, page_num);
++#endif
+ }
+ 
+ static zend_always_inline void *zend_mm_alloc_large_ex(zend_mm_heap *heap, size_t size ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)
+@@ -1097,7 +1169,12 @@ static zend_always_inline void *zend_mm_alloc_large_ex(zend_mm_heap *heap, size_
+ 		heap->peak = peak;
+ 	} while (0);
+ #endif
++
++#ifdef __CHERI_PURE_CAPABILITY__
++	return cheri_bounds_set(ptr, size);
++#else
+ 	return ptr;
++#endif
+ }
+ 
+ #if ZEND_DEBUG
+@@ -1210,6 +1287,16 @@ static zend_always_inline int zend_mm_small_size_to_bit(int size)
+ # define MIN(a, b) (((a) < (b)) ? (a) : (b))
+ #endif
+ 
++#if ZEND_MM_MIN_SMALL_SIZE == 16
++# define ZEND_MM_MIN_SMALL_SIZE_LOG2 4
++# define ZEND_MM_MAX_EVENLY_SPACED_BIN 128
++#elif ZEND_MM_MIN_SMALL_SIZE == 8
++# define ZEND_MM_MAX_EVENLY_SPACED_BIN 64
++# define ZEND_MM_MIN_SMALL_SIZE_LOG2 3
++#else
++# error Unsupported ZEND_MM_MIN_SMALL_SIZE value
++#endif
++
+ static zend_always_inline int zend_mm_small_size_to_bin(size_t size)
+ {
+ #if 0
+@@ -1224,14 +1311,14 @@ static zend_always_inline int zend_mm_small_size_to_bin(size_t size)
+ #else
+ 	unsigned int t1, t2;
+ 
+-	if (size <= 64) {
++	if (size <= ZEND_MM_MAX_EVENLY_SPACED_BIN) {
+ 		/* we need to support size == 0 ... */
+-		return (size - !!size) >> 3;
++		return (size - !!size) >> ZEND_MM_MIN_SMALL_SIZE_LOG2;
+ 	} else {
+ 		t1 = size - 1;
+ 		t2 = zend_mm_small_size_to_bit(t1) - 3;
+ 		t1 = t1 >> t2;
+-		t2 = t2 - 3;
++		t2 = t2 - ZEND_MM_MIN_SMALL_SIZE_LOG2;
+ 		t2 = t2 << 2;
+ 		return (int)(t1 + t2);
+ 	}
+@@ -1240,6 +1327,37 @@ static zend_always_inline int zend_mm_small_size_to_bin(size_t size)
+ 
+ #define ZEND_MM_SMALL_SIZE_TO_BIN(size)  zend_mm_small_size_to_bin(size)
+ 
++static zend_always_inline void zend_mm_find_chunk_and_page(zend_mm_heap *heap, void *ptr,
++        zend_mm_chunk **out_chunk, int *out_page_num)
++{
++#ifdef __CHERI_PURE_CAPABILITY__
++	if (heap->main_chunk) {
++		zend_mm_chunk *chunk = heap->main_chunk;
++
++		do {
++			if (ptr >= (void*)chunk
++			 && ptr < (void*)((char*)chunk + ZEND_MM_CHUNK_SIZE)) {
++				*out_chunk    = chunk;
++				if (out_page_num) {
++					*out_page_num = (int)((size_t)(ptr - (void*)chunk) / ZEND_MM_PAGE_SIZE);
++				}
++				return;
++			}
++			chunk = chunk->next;
++		} while (chunk != heap->main_chunk);
++	}
++
++	ZEND_MM_CHECK(0, "pointer not within any heap chunk");
++#else
++	size_t page_offset = ZEND_MM_ALIGNED_OFFSET(ptr, ZEND_MM_CHUNK_SIZE);
++	ZEND_MM_CHECK(page_offset != 0, "zend_mm_heap corrupted");
++	*out_chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
++	if (out_page_num) {
++		*out_page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++	}
++#endif
++}
++
+ static zend_never_inline void *zend_mm_alloc_small_slow(zend_mm_heap *heap, uint32_t bin_num ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)
+ {
+ 	zend_mm_chunk *chunk;
+@@ -1257,9 +1375,9 @@ static zend_never_inline void *zend_mm_alloc_small_slow(zend_mm_heap *heap, uint
+ 		return NULL;
+ 	}
+ 
+-	chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(bin, ZEND_MM_CHUNK_SIZE);
+-	page_num = ZEND_MM_ALIGNED_OFFSET(bin, ZEND_MM_CHUNK_SIZE) / ZEND_MM_PAGE_SIZE;
++	zend_mm_find_chunk_and_page(heap, bin, &chunk, &page_num);
+ 	chunk->map[page_num] = ZEND_MM_SRUN(bin_num);
++
+ 	if (bin_pages[bin_num] > 1) {
+ 		uint32_t i = 1;
+ 
+@@ -1293,7 +1411,11 @@ static zend_never_inline void *zend_mm_alloc_small_slow(zend_mm_heap *heap, uint
+ #endif
+ 
+ 	/* return first element */
++#ifdef __CHERI_PURE_CAPABILITY__
++	return cheri_bounds_set(bin, bin_data_size[bin_num]);
++#else
+ 	return bin;
++#endif
+ }
+ 
+ static zend_always_inline void *zend_mm_alloc_small(zend_mm_heap *heap, int bin_num ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)
+@@ -1310,7 +1432,12 @@ static zend_always_inline void *zend_mm_alloc_small(zend_mm_heap *heap, int bin_
+ 	if (EXPECTED(heap->free_slot[bin_num] != NULL)) {
+ 		zend_mm_free_slot *p = heap->free_slot[bin_num];
+ 		heap->free_slot[bin_num] = p->next_free_slot;
++
++#ifdef __CHERI_PURE_CAPABILITY__
++		return cheri_bounds_set(p, bin_data_size[bin_num]);
++#else
+ 		return p;
++#endif
+ 	} else {
+ 		return zend_mm_alloc_small_slow(heap, bin_num ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ 	}
+@@ -1320,6 +1447,12 @@ static zend_always_inline void zend_mm_free_small(zend_mm_heap *heap, void *ptr,
+ {
+ 	zend_mm_free_slot *p;
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++	zend_mm_chunk *chunk;
++	int page_num;
++	zend_mm_find_chunk_and_page(heap, ptr, &chunk, &page_num);
++#endif
++
+ #if ZEND_MM_STAT
+ 	heap->size -= bin_data_size[bin_num];
+ #endif
+@@ -1327,11 +1460,20 @@ static zend_always_inline void zend_mm_free_small(zend_mm_heap *heap, void *ptr,
+ #if ZEND_DEBUG
+ 	do {
+ 		zend_mm_debug_info *dbg = (zend_mm_debug_info*)((char*)ptr + bin_data_size[bin_num] - ZEND_MM_ALIGNED_SIZE(sizeof(zend_mm_debug_info)));
++#ifdef __CHERI_PURE_CAPABILITY__
++		// fix bounds for dbg pointer
++		ptraddr_t addr = cheri_address_get(dbg);
++		dbg = cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), addr);
++#endif
+ 		dbg->size = 0;
+ 	} while (0);
+ #endif
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++	p = (zend_mm_free_slot*)cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), cheri_address_get(ptr));
++#else
+ 	p = (zend_mm_free_slot*)ptr;
++#endif
+ 	p->next_free_slot = heap->free_slot[bin_num];
+ 	heap->free_slot[bin_num] = p;
+ }
+@@ -1343,23 +1485,33 @@ static zend_always_inline void zend_mm_free_small(zend_mm_heap *heap, void *ptr,
+ #if ZEND_DEBUG
+ static zend_always_inline zend_mm_debug_info *zend_mm_get_debug_info(zend_mm_heap *heap, void *ptr)
+ {
+-	size_t page_offset = ZEND_MM_ALIGNED_OFFSET(ptr, ZEND_MM_CHUNK_SIZE);
+ 	zend_mm_chunk *chunk;
+ 	int page_num;
+ 	zend_mm_page_info info;
+ 
+-	ZEND_MM_CHECK(page_offset != 0, "zend_mm_heap corrupted");
+-	chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
+-	page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++	zend_mm_find_chunk_and_page(heap, ptr, &chunk, &page_num);
++
+ 	info = chunk->map[page_num];
+ 	ZEND_MM_CHECK(chunk->heap == heap, "zend_mm_heap corrupted");
+ 	if (EXPECTED(info & ZEND_MM_IS_SRUN)) {
+ 		int bin_num = ZEND_MM_SRUN_BIN_NUM(info);
+-		return (zend_mm_debug_info*)((char*)ptr + bin_data_size[bin_num] - ZEND_MM_ALIGNED_SIZE(sizeof(zend_mm_debug_info)));
++		zend_mm_debug_info *debug_info = (zend_mm_debug_info*)((char*)ptr + bin_data_size[bin_num] - ZEND_MM_ALIGNED_SIZE(sizeof(zend_mm_debug_info)));
++#ifdef __CHERI_PURE_CAPABILITY__
++		ptraddr_t addr = cheri_address_get(debug_info);
++		return cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), addr);
++#else
++		return debug_info;
++#endif
+ 	} else /* if (info & ZEND_MM_IS_LRUN) */ {
+ 		int pages_count = ZEND_MM_LRUN_PAGES(info);
+ 
+-		return (zend_mm_debug_info*)((char*)ptr + ZEND_MM_PAGE_SIZE * pages_count - ZEND_MM_ALIGNED_SIZE(sizeof(zend_mm_debug_info)));
++		zend_mm_debug_info* debug_info = (zend_mm_debug_info*)((char*)ptr + ZEND_MM_PAGE_SIZE * pages_count - ZEND_MM_ALIGNED_SIZE(sizeof(zend_mm_debug_info)));
++#ifdef __CHERI_PURE_CAPABILITY__
++		ptraddr_t addr = cheri_address_get(debug_info);
++		return cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), addr);
++#else
++		return debug_info;
++#endif
+ 	}
+ }
+ #endif
+@@ -1418,8 +1570,10 @@ static zend_always_inline void zend_mm_free_heap(zend_mm_heap *heap, void *ptr Z
+ 			zend_mm_free_huge(heap, ptr ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ 		}
+ 	} else {
+-		zend_mm_chunk *chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
+-		int page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++		zend_mm_chunk *chunk;
++		int page_num;
++		zend_mm_find_chunk_and_page(heap, ptr, &chunk, &page_num);
++
+ 		zend_mm_page_info info = chunk->map[page_num];
+ 
+ 		ZEND_MM_CHECK(chunk->heap == heap, "zend_mm_heap corrupted");
+@@ -1449,8 +1603,8 @@ static size_t zend_mm_size(zend_mm_heap *heap, void *ptr ZEND_FILE_LINE_DC ZEND_
+ 		int page_num;
+ 		zend_mm_page_info info;
+ 
+-		chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
+-		page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++		zend_mm_find_chunk_and_page(heap, ptr, &chunk, &page_num);
++
+ 		info = chunk->map[page_num];
+ 		ZEND_MM_CHECK(chunk->heap == heap, "zend_mm_heap corrupted");
+ 		if (EXPECTED(info & ZEND_MM_IS_SRUN)) {
+@@ -1545,7 +1699,9 @@ static zend_never_inline void *zend_mm_realloc_huge(zend_mm_heap *heap, void *pt
+ 			}
+ #endif
+ 			/* try to map tail right after this block */
+-			if (zend_mm_chunk_extend(heap, ptr, old_size, new_size)) {
++			void* extended_ptr = zend_mm_chunk_extend(heap, ptr, old_size, new_size);
++			if (extended_ptr != NULL) {
++				ptr = extended_ptr;
+ #if ZEND_MM_STAT || ZEND_MM_LIMIT
+ 				heap->real_size += new_size - old_size;
+ #endif
+@@ -1573,6 +1729,7 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 	size_t old_size;
+ 	size_t new_size;
+ 	void *ret;
++	int page_num;
+ #if ZEND_DEBUG
+ 	zend_mm_debug_info *dbg;
+ #endif
+@@ -1585,8 +1742,9 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 			return zend_mm_realloc_huge(heap, ptr, size, copy_size ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ 		}
+ 	} else {
+-		zend_mm_chunk *chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
+-		int page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++		zend_mm_chunk *chunk;
++		zend_mm_find_chunk_and_page(heap, ptr, &chunk, &page_num);
++
+ 		zend_mm_page_info info = chunk->map[page_num];
+ #if ZEND_DEBUG
+ 		size_t real_size = size;
+@@ -1608,11 +1766,18 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 						/* truncation */
+ 						ret = zend_mm_alloc_small(heap, ZEND_MM_SMALL_SIZE_TO_BIN(size) ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ 						copy_size = use_copy_size ? MIN(size, copy_size) : size;
++#ifdef __CHERI_PURE_CAPABILITY__
++						copy_size = MIN(copy_size, cheri_length_get(ptr));
++#endif
+ 						memcpy(ret, ptr, copy_size);
+ 						zend_mm_free_small(heap, ptr, old_bin_num);
+ 					} else {
+ 						/* reallocation in-place */
++#ifdef __CHERI_PURE_CAPABILITY__
++						ret = cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), cheri_address_get(ptr));
++#else
+ 						ret = ptr;
++#endif
+ 					}
+ 				} else if (size <= ZEND_MM_MAX_SMALL_SIZE) {
+ 					/* small extension */
+@@ -1623,6 +1788,9 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ #endif
+ 						ret = zend_mm_alloc_small(heap, ZEND_MM_SMALL_SIZE_TO_BIN(size) ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ 						copy_size = use_copy_size ? MIN(old_size, copy_size) : old_size;
++#ifdef __CHERI_PURE_CAPABILITY__
++						copy_size = MIN(copy_size, cheri_length_get(ptr));
++#endif
+ 						memcpy(ret, ptr, copy_size);
+ 						zend_mm_free_small(heap, ptr, old_bin_num);
+ #if ZEND_MM_STAT
+@@ -1641,6 +1809,14 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 				dbg->orig_filename = __zend_orig_filename;
+ 				dbg->lineno = __zend_lineno;
+ 				dbg->orig_lineno = __zend_orig_lineno;
++#endif
++
++#ifdef __CHERI_PURE_CAPABILITY__
++# if ZEND_DEBUG
++				ret = cheri_bounds_set(ret, real_size);
++# else
++				ret = cheri_bounds_set(ret, size);
++# endif
+ #endif
+ 				return ret;
+ 			}  while (0);
+@@ -1658,6 +1834,16 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 					dbg->orig_filename = __zend_orig_filename;
+ 					dbg->lineno = __zend_lineno;
+ 					dbg->orig_lineno = __zend_orig_lineno;
++#endif
++#ifdef __CHERI_PURE_CAPABILITY__
++					uintptr_t address = cheri_address_get(ptr);
++					// Use page pointer to derive a pointer with enlarged bounds
++					ptr = cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), address);
++# if ZEND_DEBUG
++					ptr = cheri_bounds_set(ptr, real_size);
++# else
++					ptr = cheri_bounds_set(ptr, size);
++# endif
+ #endif
+ 					return ptr;
+ 				} else if (new_size < old_size) {
+@@ -1678,6 +1864,13 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 					dbg->orig_filename = __zend_orig_filename;
+ 					dbg->lineno = __zend_lineno;
+ 					dbg->orig_lineno = __zend_orig_lineno;
++#endif
++#ifdef __CHERI_PURE_CAPABILITY__
++# if ZEND_DEBUG
++					ptr = cheri_bounds_set(ptr, real_size);
++# else
++					ptr = cheri_bounds_set(ptr, size);
++# endif
+ #endif
+ 					return ptr;
+ 				} else /* if (new_size > old_size) */ {
+@@ -1705,6 +1898,16 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 						dbg->orig_filename = __zend_orig_filename;
+ 						dbg->lineno = __zend_lineno;
+ 						dbg->orig_lineno = __zend_orig_lineno;
++#endif
++#ifdef __CHERI_PURE_CAPABILITY__
++						uintptr_t address = cheri_address_get(ptr);
++						// Use page pointer to derive a pointer with enlarged bounds
++						ptr = cheri_address_set(ZEND_MM_PAGE_ADDR(chunk, page_num), address);
++# if ZEND_DEBUG
++						ptr = cheri_bounds_set(ptr, real_size);
++# else
++						ptr = cheri_bounds_set(ptr, size);
++# endif
+ #endif
+ 						return ptr;
+ 					}
+@@ -1717,6 +1920,12 @@ static zend_always_inline void *zend_mm_realloc_heap(zend_mm_heap *heap, void *p
+ 	}
+ 
+ 	copy_size = MIN(old_size, copy_size);
++
++#ifdef __CHERI_PURE_CAPABILITY__
++	// we cannot copy out more bytes than the length of the pointer
++	copy_size = MIN(copy_size, cheri_length_get(ptr));
++#endif
++
+ 	return zend_mm_realloc_slow(heap, ptr, size, copy_size ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
+ }
+ 
+@@ -1731,7 +1940,12 @@ static void zend_mm_add_huge_block(zend_mm_heap *heap, void *ptr, size_t size ZE
+ #endif
+ {
+ 	zend_mm_huge_list *list = (zend_mm_huge_list*)zend_mm_alloc_heap(heap, sizeof(zend_mm_huge_list) ZEND_FILE_LINE_RELAY_CC ZEND_FILE_LINE_ORIG_RELAY_CC);
++#ifdef __CHERI_PURE_CAPABILITY__
++	list->ptr = cheri_bounds_set(ptr, size);
++	list->extendible = ptr;
++#else
+ 	list->ptr = ptr;
++#endif
+ 	list->size = size;
+ 	list->next = heap->huge_list;
+ #if ZEND_DEBUG
+@@ -1874,7 +2088,11 @@ static void *zend_mm_alloc_huge(zend_mm_heap *heap, size_t size ZEND_FILE_LINE_D
+ #elif ZEND_MM_LIMIT
+ 	heap->real_size += new_size;
+ #endif
++#ifdef __CHERI_PURE_CAPABILITY__
++	return cheri_bounds_set(ptr, new_size);
++#else
+ 	return ptr;
++#endif
+ }
+ 
+ static void zend_mm_free_huge(zend_mm_heap *heap, void *ptr ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)
+@@ -1899,6 +2117,9 @@ static void zend_mm_free_huge(zend_mm_heap *heap, void *ptr ZEND_FILE_LINE_DC ZE
+ static zend_mm_heap *zend_mm_init(void)
+ {
+ 	zend_mm_chunk *chunk = (zend_mm_chunk*)zend_mm_chunk_alloc_int(ZEND_MM_CHUNK_SIZE, ZEND_MM_CHUNK_SIZE);
++#ifdef __CHERI_PURE_CAPABILITY__
++	chunk = cheri_bounds_set(chunk, ZEND_MM_CHUNK_SIZE);
++#endif
+ 	zend_mm_heap *heap;
+ 
+ 	if (UNEXPECTED(chunk == NULL)) {
+@@ -1950,7 +2171,6 @@ ZEND_API size_t zend_mm_gc(zend_mm_heap *heap)
+ {
+ 	zend_mm_free_slot *p, **q;
+ 	zend_mm_chunk *chunk;
+-	size_t page_offset;
+ 	int page_num;
+ 	zend_mm_page_info info;
+ 	uint32_t i, free_counter;
+@@ -1967,11 +2187,9 @@ ZEND_API size_t zend_mm_gc(zend_mm_heap *heap)
+ 		has_free_pages = false;
+ 		p = heap->free_slot[i];
+ 		while (p != NULL) {
+-			chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(p, ZEND_MM_CHUNK_SIZE);
++			zend_mm_find_chunk_and_page(heap, p, &chunk, &page_num);
++
+ 			ZEND_MM_CHECK(chunk->heap == heap, "zend_mm_heap corrupted");
+-			page_offset = ZEND_MM_ALIGNED_OFFSET(p, ZEND_MM_CHUNK_SIZE);
+-			ZEND_ASSERT(page_offset != 0);
+-			page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
+ 			info = chunk->map[page_num];
+ 			ZEND_ASSERT(info & ZEND_MM_IS_SRUN);
+ 			if (info & ZEND_MM_IS_LRUN) {
+@@ -1996,11 +2214,7 @@ ZEND_API size_t zend_mm_gc(zend_mm_heap *heap)
+ 		q = &heap->free_slot[i];
+ 		p = *q;
+ 		while (p != NULL) {
+-			chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(p, ZEND_MM_CHUNK_SIZE);
+-			ZEND_MM_CHECK(chunk->heap == heap, "zend_mm_heap corrupted");
+-			page_offset = ZEND_MM_ALIGNED_OFFSET(p, ZEND_MM_CHUNK_SIZE);
+-			ZEND_ASSERT(page_offset != 0);
+-			page_num = (int)(page_offset / ZEND_MM_PAGE_SIZE);
++			zend_mm_find_chunk_and_page(heap, p, &chunk, &page_num);
+ 			info = chunk->map[page_num];
+ 			ZEND_ASSERT(info & ZEND_MM_IS_SRUN);
+ 			if (info & ZEND_MM_IS_LRUN) {
+@@ -2303,7 +2517,11 @@ void zend_mm_shutdown(zend_mm_heap *heap, bool full, bool silent)
+ 	while (list) {
+ 		zend_mm_huge_list *q = list;
+ 		list = list->next;
++#ifdef __CHERI_PURE_CAPABILITY__
++		zend_mm_chunk_free(heap, q->extendible, q->size);
++#else
+ 		zend_mm_chunk_free(heap, q->ptr, q->size);
++#endif
+ 	}
+ 
+ 	/* move all chunks except of the first one into the cache */
+@@ -2483,6 +2701,34 @@ ZEND_API bool is_zend_ptr(const void *ptr)
+ 	return 0;
+ }
+ 
++ZEND_API void *zend_mm_page_ptr(const void *ptr)
++{
++#ifdef __CHERI_PURE_CAPABILITY__
++	zend_mm_chunk *chunk;
++	int page_num;
++	void *page;
++	zend_mm_huge_list *block;
++
++	for (block = AG(mm_heap)->huge_list; block; block = block->next) {
++		if (ptr >= block->ptr && ptr < (void *) ((char *) block->ptr + block->size)) {
++			page = cheri_address_set(block->ptr, (uintptr_t) ptr & ~(ZEND_MM_PAGE_SIZE - 1));
++			page = cheri_address_set(page, cheri_address_get(page));
++			return cheri_bounds_set(page, ZEND_MM_PAGE_SIZE);
++		}
++	}
++
++	zend_mm_find_chunk_and_page(AG(mm_heap), (void *) ptr, &chunk, &page_num);
++	if (chunk == NULL) {
++		return NULL;
++	}
++	page = ZEND_MM_PAGE_ADDR(chunk, page_num);
++	page = cheri_address_set(page, cheri_address_get(page));
++	return cheri_bounds_set(page, ZEND_MM_PAGE_SIZE);
++#else
++	return (void *) ((uintptr_t) ptr & ~(ZEND_MM_PAGE_SIZE - 1));
++#endif
++}
++
+ #if ZEND_MM_CUSTOM
+ 
+ static ZEND_COLD void* ZEND_FASTCALL _malloc_custom(size_t size ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)
+@@ -2558,9 +2804,9 @@ ZEND_API void* ZEND_FASTCALL _emalloc_huge(size_t size)
+ 	ZEND_API void ZEND_FASTCALL _efree_ ## _size(void *ptr) { \
+ 		ZEND_MM_CUSTOM_DEALLOCATOR(ptr); \
+ 		{ \
+-			size_t page_offset = ZEND_MM_ALIGNED_OFFSET(ptr, ZEND_MM_CHUNK_SIZE); \
+-			zend_mm_chunk *chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE); \
+-			int page_num = page_offset / ZEND_MM_PAGE_SIZE; \
++			zend_mm_chunk *chunk; \
++			int page_num; \
++			zend_mm_find_chunk_and_page(AG(mm_heap), ptr, &chunk, &page_num); \
+ 			ZEND_MM_CHECK(chunk->heap == AG(mm_heap), "zend_mm_heap corrupted"); \
+ 			ZEND_ASSERT(chunk->map[page_num] & ZEND_MM_IS_SRUN); \
+ 			ZEND_ASSERT(ZEND_MM_SRUN_BIN_NUM(chunk->map[page_num]) == _num); \
+@@ -2572,7 +2818,8 @@ ZEND_API void* ZEND_FASTCALL _emalloc_huge(size_t size)
+ 	ZEND_API void ZEND_FASTCALL _efree_ ## _size(void *ptr) { \
+ 		ZEND_MM_CUSTOM_DEALLOCATOR(ptr); \
+ 		{ \
+-			zend_mm_chunk *chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE); \
++			zend_mm_chunk *chunk; \
++			zend_mm_find_chunk_and_page(AG(mm_heap), ptr, &chunk, NULL); \
+ 			ZEND_MM_CHECK(chunk->heap == AG(mm_heap), "zend_mm_heap corrupted"); \
+ 			zend_mm_free_small(AG(mm_heap), ptr, _num); \
+ 		} \
+@@ -2585,12 +2832,12 @@ ZEND_API void ZEND_FASTCALL _efree_large(void *ptr, size_t size)
+ {
+ 	ZEND_MM_CUSTOM_DEALLOCATOR(ptr);
+ 	{
+-		size_t page_offset = ZEND_MM_ALIGNED_OFFSET(ptr, ZEND_MM_CHUNK_SIZE);
+-		zend_mm_chunk *chunk = (zend_mm_chunk*)ZEND_MM_ALIGNED_BASE(ptr, ZEND_MM_CHUNK_SIZE);
+-		int page_num = page_offset / ZEND_MM_PAGE_SIZE;
++		zend_mm_chunk *chunk;
++		int page_num;
+ 		uint32_t pages_count = ZEND_MM_ALIGNED_SIZE_EX(size, ZEND_MM_PAGE_SIZE) / ZEND_MM_PAGE_SIZE;
++		zend_mm_find_chunk_and_page(AG(mm_heap), ptr, &chunk, &page_num);
+ 
+-		ZEND_MM_CHECK(chunk->heap == AG(mm_heap) && ZEND_MM_ALIGNED_OFFSET(page_offset, ZEND_MM_PAGE_SIZE) == 0, "zend_mm_heap corrupted");
++		ZEND_MM_CHECK(chunk->heap == AG(mm_heap), "zend_mm_heap corrupted");
+ 		ZEND_ASSERT(chunk->map[page_num] & ZEND_MM_IS_LRUN);
+ 		ZEND_ASSERT(ZEND_MM_LRUN_PAGES(chunk->map[page_num]) == pages_count);
+ 		zend_mm_free_large(AG(mm_heap), chunk, page_num, pages_count);
+diff --git Zend/zend_alloc.h Zend/zend_alloc.h
+index 578d4c78cc5..69299532666 100644
+--- Zend/zend_alloc.h
++++ Zend/zend_alloc.h
+@@ -222,6 +222,8 @@ ZEND_API void shutdown_memory_manager(bool silent, bool full_shutdown);
+ ZEND_API bool is_zend_mm(void);
+ ZEND_API bool is_zend_ptr(const void *ptr);
+ 
++ZEND_API void *zend_mm_page_ptr(const void* ptr);
++
+ ZEND_API size_t zend_memory_usage(bool real_usage);
+ ZEND_API size_t zend_memory_peak_usage(bool real_usage);
+ ZEND_API void zend_memory_reset_peak_usage(void);
+diff --git Zend/zend_alloc_sizes.h Zend/zend_alloc_sizes.h
+index 502b982a505..4e76c481ba5 100644
+--- Zend/zend_alloc_sizes.h
++++ Zend/zend_alloc_sizes.h
+@@ -24,12 +24,46 @@
+ #define ZEND_MM_PAGES      (ZEND_MM_CHUNK_SIZE / ZEND_MM_PAGE_SIZE)  /* 512 */
+ #define ZEND_MM_FIRST_PAGE (1)
+ 
+-#define ZEND_MM_MIN_SMALL_SIZE		8
++#ifdef __CHERI_PURE_CAPABILITY__
++# define ZEND_MM_MIN_SMALL_SIZE		16
++#else
++# define ZEND_MM_MIN_SMALL_SIZE		8
++#endif
++
+ #define ZEND_MM_MAX_SMALL_SIZE      3072
+ #define ZEND_MM_MAX_LARGE_SIZE      (ZEND_MM_CHUNK_SIZE - (ZEND_MM_PAGE_SIZE * ZEND_MM_FIRST_PAGE))
+ 
+ /* num, size, count, pages */
+-#define ZEND_MM_BINS_INFO(_, x, y) \
++#ifdef __CHERI_PURE_CAPABILITY__
++# define ZEND_MM_BINS_INFO(_, x, y) \
++	_( 0,   16,  256, 1, x, y) \
++	_( 1,   32,  128, 1, x, y) \
++	_( 2,   48,   85, 1, x, y) \
++	_( 3,   64,   64, 1, x, y) \
++	_( 4,   80,   51, 1, x, y) \
++	_( 5,   96,   42, 1, x, y) \
++	_( 6,  112,   36, 1, x, y) \
++	_( 7,  128,   32, 1, x, y) \
++	_( 8,  160,   25, 1, x, y) \
++	_( 9,  192,   21, 1, x, y) \
++	_(10,  224,   18, 1, x, y) \
++	_(11,  256,   16, 1, x, y) \
++	_(12,  320,   64, 5, x, y) \
++	_(13,  384,   32, 3, x, y) \
++	_(14,  448,    9, 1, x, y) \
++	_(15,  512,    8, 1, x, y) \
++	_(16,  640,   32, 5, x, y) \
++	_(17,  768,   16, 3, x, y) \
++	_(18,  896,    9, 2, x, y) \
++	_(19, 1024,    8, 2, x, y) \
++	_(20, 1280,   16, 5, x, y) \
++	_(21, 1536,    8, 3, x, y) \
++	_(22, 1792,   16, 7, x, y) \
++	_(23, 2048,    8, 4, x, y) \
++	_(24, 2560,    8, 5, x, y) \
++	_(25, 3072,    4, 3, x, y)
++#else
++# define ZEND_MM_BINS_INFO(_, x, y) \
+ 	_( 0,    8,  512, 1, x, y) \
+ 	_( 1,   16,  256, 1, x, y) \
+ 	_( 2,   24,  170, 1, x, y) \
+@@ -60,5 +94,6 @@
+ 	_(27, 2048,    8, 4, x, y) \
+ 	_(28, 2560,    8, 5, x, y) \
+ 	_(29, 3072,    4, 3, x, y)
++#endif
+ 
+ #endif /* ZEND_ALLOC_SIZES_H */
+diff --git Zend/zend_compile.c Zend/zend_compile.c
+index 1078dd1d20a..95a78198331 100644
+--- Zend/zend_compile.c
++++ Zend/zend_compile.c
+@@ -2710,7 +2710,7 @@ static inline bool zend_is_const_default_class_ref(zend_ast *name_ast) /* {{{ */
+ static inline void zend_handle_numeric_op(znode *node) /* {{{ */
+ {
+ 	if (node->op_type == IS_CONST && Z_TYPE(node->u.constant) == IS_STRING) {
+-		zend_ulong index;
++		HT_KEY_TYPE index;
+ 
+ 		if (ZEND_HANDLE_NUMERIC(Z_STR(node->u.constant), index)) {
+ 			zval_ptr_dtor(&node->u.constant);
+@@ -2723,7 +2723,7 @@ static inline void zend_handle_numeric_op(znode *node) /* {{{ */
+ static inline void zend_handle_numeric_dim(zend_op *opline, znode *dim_node) /* {{{ */
+ {
+ 	if (Z_TYPE(dim_node->u.constant) == IS_STRING) {
+-		zend_ulong index;
++		HT_KEY_TYPE index;
+ 
+ 		if (ZEND_HANDLE_NUMERIC(Z_STR(dim_node->u.constant), index)) {
+ 			/* For numeric indexes we also keep the original value to use by ArrayAccess
+diff --git Zend/zend_enum.c Zend/zend_enum.c
+index 58862c1564d..6e75cecef9f 100644
+--- Zend/zend_enum.c
++++ Zend/zend_enum.c
+@@ -524,10 +524,10 @@ ZEND_API zend_class_entry *zend_register_internal_enum(
+ static zend_ast_ref *create_enum_case_ast(
+ 		zend_string *class_name, zend_string *case_name, zval *value) {
+ 	// TODO: Use custom node type for enum cases?
+-	size_t size = sizeof(zend_ast_ref) + zend_ast_size(3)
++	size_t size = ZEND_MM_ALIGNED_SIZE(sizeof(zend_ast_ref)) + zend_ast_size(3)
+ 		+ (value ? 3 : 2) * sizeof(zend_ast_zval);
+ 	char *p = pemalloc(size, 1);
+-	zend_ast_ref *ref = (zend_ast_ref *) p; p += sizeof(zend_ast_ref);
++	zend_ast_ref *ref = (zend_ast_ref *) p; p += ZEND_MM_ALIGNED_SIZE(sizeof(zend_ast_ref));
+ 	GC_SET_REFCOUNT(ref, 1);
+ 	GC_TYPE_INFO(ref) = GC_CONSTANT_AST | GC_PERSISTENT | GC_IMMUTABLE;
+ 
+diff --git Zend/zend_execute.c Zend/zend_execute.c
+index 436154a99af..ee029a8ba63 100644
+--- Zend/zend_execute.c
++++ Zend/zend_execute.c
+@@ -2476,7 +2476,7 @@ static zend_always_inline zval *zend_fetch_dimension_address_inner(HashTable *ht
+ {
+ 	zval *retval = NULL;
+ 	zend_string *offset_key;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 
+ try_again:
+ 	if (EXPECTED(Z_TYPE_P(dim) == IS_LONG)) {
+@@ -3012,7 +3012,7 @@ static zend_never_inline bool ZEND_FASTCALL zend_isempty_dim_slow(zval *containe
+ static zend_never_inline bool ZEND_FASTCALL zend_array_key_exists_fast(HashTable *ht, zval *key OPLINE_DC EXECUTE_DATA_DC)
+ {
+ 	zend_string *str;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 
+ try_again:
+ 	if (EXPECTED(Z_TYPE_P(key) == IS_STRING)) {
+diff --git Zend/zend_hash.c Zend/zend_hash.c
+index 6668c4c17c6..85161c02ad3 100644
+--- Zend/zend_hash.c
++++ Zend/zend_hash.c
+@@ -243,14 +243,18 @@ static zend_always_inline void zend_hash_real_init_ex(HashTable *ht, bool packed
+ }
+ 
+ static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
++#ifdef __CHERI_PURE_CAPABILITY__
++	{HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX};
++#else
+ 	{HT_INVALID_IDX, HT_INVALID_IDX};
++#endif
+ 
+ ZEND_API const HashTable zend_empty_array = {
+ 	.gc.refcount = 2,
+ 	.gc.u.type_info = IS_ARRAY | (GC_IMMUTABLE << GC_FLAGS_SHIFT),
+ 	.u.flags = HASH_FLAG_UNINITIALIZED,
+ 	.nTableMask = HT_MIN_MASK,
+-	{.arData = (Bucket*)&uninitialized_bucket[2]},
++	{.arData = (Bucket*)&uninitialized_bucket[-HT_MIN_MASK]},
+ 	.nNumUsed = 0,
+ 	.nNumOfElements = 0,
+ 	.nTableSize = HT_MIN_SIZE,
+@@ -767,7 +771,7 @@ static zend_always_inline Bucket *zend_hash_find_bucket(const HashTable *ht, con
+ 	}
+ }
+ 
+-static zend_always_inline Bucket *zend_hash_str_find_bucket(const HashTable *ht, const char *str, size_t len, zend_ulong h)
++static zend_always_inline Bucket *zend_hash_str_find_bucket(const HashTable *ht, const char *str, size_t len, HT_KEY_TYPE h)
+ {
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+@@ -789,7 +793,7 @@ static zend_always_inline Bucket *zend_hash_str_find_bucket(const HashTable *ht,
+ 	return NULL;
+ }
+ 
+-static zend_always_inline Bucket *zend_hash_index_find_bucket(const HashTable *ht, zend_ulong h)
++static zend_always_inline Bucket *zend_hash_index_find_bucket(const HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+@@ -811,7 +815,7 @@ static zend_always_inline Bucket *zend_hash_index_find_bucket(const HashTable *h
+ 
+ static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_string *key, zval *pData, uint32_t flag)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+ 	Bucket *p, *arData;
+@@ -890,7 +894,7 @@ static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_s
+ 	return &p->val;
+ }
+ 
+-static zend_always_inline zval *_zend_hash_str_add_or_update_i(HashTable *ht, const char *str, size_t len, zend_ulong h, zval *pData, uint32_t flag)
++static zend_always_inline zval *_zend_hash_str_add_or_update_i(HashTable *ht, const char *str, size_t len, HT_KEY_TYPE h, zval *pData, uint32_t flag)
+ {
+ 	zend_string *key;
+ 	uint32_t nIndex;
+@@ -1025,33 +1029,33 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add_or_update(HashTable *ht, const ch
+ 
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_update(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong h = zend_hash_func(str, len);
++	HT_KEY_TYPE h = zend_hash_func(str, len);
+ 
+ 	return _zend_hash_str_add_or_update_i(ht, str, len, h, pData, HASH_UPDATE);
+ }
+ 
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_update_ind(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong h = zend_hash_func(str, len);
++	HT_KEY_TYPE h = zend_hash_func(str, len);
+ 
+ 	return _zend_hash_str_add_or_update_i(ht, str, len, h, pData, HASH_UPDATE | HASH_UPDATE_INDIRECT);
+ }
+ 
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong h = zend_hash_func(str, len);
++	HT_KEY_TYPE h = zend_hash_func(str, len);
+ 
+ 	return _zend_hash_str_add_or_update_i(ht, str, len, h, pData, HASH_ADD);
+ }
+ 
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add_new(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong h = zend_hash_func(str, len);
++	HT_KEY_TYPE h = zend_hash_func(str, len);
+ 
+ 	return _zend_hash_str_add_or_update_i(ht, str, len, h, pData, HASH_ADD_NEW);
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_empty_element(HashTable *ht, zend_ulong h)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_empty_element(HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	zval dummy;
+ 
+@@ -1075,7 +1079,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add_empty_element(HashTable *ht, cons
+ 	return zend_hash_str_add(ht, str, len, &dummy);
+ }
+ 
+-static zend_always_inline zval *_zend_hash_index_add_or_update_i(HashTable *ht, zend_ulong h, zval *pData, uint32_t flag)
++static zend_always_inline zval *_zend_hash_index_add_or_update_i(HashTable *ht, HT_KEY_TYPE h, zval *pData, uint32_t flag)
+ {
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+@@ -1183,7 +1187,7 @@ static zend_always_inline zval *_zend_hash_index_add_or_update_i(HashTable *ht,
+ 	return &p->val;
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_or_update(HashTable *ht, zend_ulong h, zval *pData, uint32_t flag)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_or_update(HashTable *ht, HT_KEY_TYPE h, zval *pData, uint32_t flag)
+ {
+ 	if (flag == HASH_ADD) {
+ 		return zend_hash_index_add(ht, h, pData);
+@@ -1201,17 +1205,17 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_or_update(HashTable *ht, zend_u
+ 	}
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add(HashTable *ht, zend_ulong h, zval *pData)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add(HashTable *ht, HT_KEY_TYPE h, zval *pData)
+ {
+ 	return _zend_hash_index_add_or_update_i(ht, h, pData, HASH_ADD);
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_new(HashTable *ht, zend_ulong h, zval *pData)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_new(HashTable *ht, HT_KEY_TYPE h, zval *pData)
+ {
+ 	return _zend_hash_index_add_or_update_i(ht, h, pData, HASH_ADD | HASH_ADD_NEW);
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_update(HashTable *ht, zend_ulong h, zval *pData)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_update(HashTable *ht, HT_KEY_TYPE h, zval *pData)
+ {
+ 	return _zend_hash_index_add_or_update_i(ht, h, pData, HASH_UPDATE);
+ }
+@@ -1226,7 +1230,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_next_index_insert_new(HashTable *ht, zval
+ 	return _zend_hash_index_add_or_update_i(ht, ht->nNextFreeElement, pData, HASH_ADD | HASH_ADD_NEW | HASH_ADD_NEXT);
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_lookup(HashTable *ht, zend_ulong h)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_lookup(HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	return _zend_hash_index_add_or_update_i(ht, h, NULL, HASH_LOOKUP);
+ }
+@@ -1534,7 +1538,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_del_bucket(HashTable *ht, Bucket *p)
+ 
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_del(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+ 	Bucket *p;
+@@ -1566,7 +1570,7 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_del(HashTable *ht, zend_string *key
+ 
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_del_ind(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+ 	Bucket *p;
+@@ -1616,7 +1620,7 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_del_ind(HashTable *ht, zend_string
+ 
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del_ind(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+ 	Bucket *p;
+@@ -1661,7 +1665,7 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del_ind(HashTable *ht, const ch
+ 
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+ 	Bucket *p;
+@@ -1690,7 +1694,7 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *
+ 	return FAILURE;
+ }
+ 
+-ZEND_API zend_result ZEND_FASTCALL zend_hash_index_del(HashTable *ht, zend_ulong h)
++ZEND_API zend_result ZEND_FASTCALL zend_hash_index_del(HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	uint32_t nIndex;
+ 	uint32_t idx;
+@@ -2628,7 +2632,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_merge(HashTable *target, HashTable *source
+ }
+ 
+ 
+-static bool ZEND_FASTCALL zend_hash_replace_checker_wrapper(HashTable *target, zval *source_data, zend_ulong h, zend_string *key, void *pParam, merge_checker_func_t merge_checker_func)
++static bool ZEND_FASTCALL zend_hash_replace_checker_wrapper(HashTable *target, zval *source_data, HT_KEY_TYPE h, zend_string *key, void *pParam, merge_checker_func_t merge_checker_func)
+ {
+ 	zend_hash_key hash_key;
+ 
+@@ -2686,7 +2690,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_find_known_hash(const HashTable *ht, cons
+ 
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	Bucket *p;
+ 
+ 	IS_CONSISTENT(ht);
+@@ -2696,7 +2700,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char
+ 	return p ? &p->val : NULL;
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_find(const HashTable *ht, zend_ulong h)
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_find(const HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	Bucket *p;
+ 
+@@ -2717,7 +2721,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_index_find(const HashTable *ht, zend_ulon
+ 	return p ? &p->val : NULL;
+ }
+ 
+-ZEND_API zval* ZEND_FASTCALL _zend_hash_index_find(const HashTable *ht, zend_ulong h)
++ZEND_API zval* ZEND_FASTCALL _zend_hash_index_find(const HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	Bucket *p;
+ 
+@@ -2841,7 +2845,7 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_move_backwards_ex(HashTable *ht, Ha
+ 
+ 
+ /* This function should be made binary safe  */
+-ZEND_API int ZEND_FASTCALL zend_hash_get_current_key_ex(const HashTable *ht, zend_string **str_index, zend_ulong *num_index, const HashPosition *pos)
++ZEND_API int ZEND_FASTCALL zend_hash_get_current_key_ex(const HashTable *ht, zend_string **str_index, HT_KEY_TYPE *num_index, const HashPosition *pos)
+ {
+ 	uint32_t idx;
+ 	Bucket *p;
+@@ -2931,7 +2935,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_get_current_data_ex(HashTable *ht, HashPo
+ ZEND_API void zend_hash_bucket_swap(Bucket *p, Bucket *q)
+ {
+ 	zval val;
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	zend_string *key;
+ 
+ 	val = p->val;
+@@ -2959,7 +2963,7 @@ ZEND_API void zend_hash_bucket_renum_swap(Bucket *p, Bucket *q)
+ ZEND_API void zend_hash_bucket_packed_swap(Bucket *p, Bucket *q)
+ {
+ 	zval val;
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 
+ 	val = p->val;
+ 	h = p->h;
+@@ -3067,7 +3071,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_sort_ex(HashTable *ht, sort_func_t sort, b
+ static zend_always_inline int zend_hash_compare_impl(HashTable *ht1, HashTable *ht2, compare_func_t compar, bool ordered) {
+ 	uint32_t idx1, idx2;
+ 	zend_string *key1, *key2;
+-	zend_ulong h1, h2;
++	HT_KEY_TYPE h1, h2;
+ 	zval *pData1, *pData2;;
+ 	int result;
+ 
+@@ -3259,7 +3263,7 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_minmax(const HashTable *ht, compare_func_
+ 	return res;
+ }
+ 
+-ZEND_API bool ZEND_FASTCALL _zend_handle_numeric_str_ex(const char *key, size_t length, zend_ulong *idx)
++ZEND_API bool ZEND_FASTCALL _zend_handle_numeric_str_ex(const char *key, size_t length, HT_KEY_TYPE *idx)
+ {
+ 	const char *tmp = key;
+ 
+@@ -3304,7 +3308,7 @@ ZEND_API bool ZEND_FASTCALL _zend_handle_numeric_str_ex(const char *key, size_t
+  */
+ ZEND_API HashTable* ZEND_FASTCALL zend_symtable_to_proptable(HashTable *ht)
+ {
+-	zend_ulong num_key;
++	HT_KEY_TYPE num_key;
+ 	zend_string *str_key;
+ 	zval *zv;
+ 
+@@ -3357,7 +3361,7 @@ ZEND_API HashTable* ZEND_FASTCALL zend_symtable_to_proptable(HashTable *ht)
+  */
+ ZEND_API HashTable* ZEND_FASTCALL zend_proptable_to_symtable(HashTable *ht, bool always_duplicate)
+ {
+-	zend_ulong num_key;
++	HT_KEY_TYPE num_key;
+ 	zend_string *str_key;
+ 	zval *zv;
+ 
+diff --git Zend/zend_hash.h Zend/zend_hash.h
+index 5726c8a919f..637206a2ccb 100644
+--- Zend/zend_hash.h
++++ Zend/zend_hash.h
+@@ -90,7 +90,7 @@ extern ZEND_API const HashTable zend_empty_array;
+ 
+ 
+ typedef struct _zend_hash_key {
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	zend_string *key;
+ } zend_hash_key;
+ 
+@@ -128,14 +128,14 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_str_update_ind(HashTable *ht, const char
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add(HashTable *ht, const char *key, size_t len, zval *pData);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add_new(HashTable *ht, const char *key, size_t len, zval *pData);
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_or_update(HashTable *ht, zend_ulong h, zval *pData, uint32_t flag);
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add(HashTable *ht, zend_ulong h, zval *pData);
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_new(HashTable *ht, zend_ulong h, zval *pData);
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_update(HashTable *ht, zend_ulong h, zval *pData);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_or_update(HashTable *ht, HT_KEY_TYPE h, zval *pData, uint32_t flag);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add(HashTable *ht, HT_KEY_TYPE h, zval *pData);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_new(HashTable *ht, HT_KEY_TYPE h, zval *pData);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_update(HashTable *ht, HT_KEY_TYPE h, zval *pData);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_next_index_insert(HashTable *ht, zval *pData);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_next_index_insert_new(HashTable *ht, zval *pData);
+ 
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_empty_element(HashTable *ht, zend_ulong h);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_add_empty_element(HashTable *ht, HT_KEY_TYPE h);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_add_empty_element(HashTable *ht, zend_string *key);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_add_empty_element(HashTable *ht, const char *key, size_t len);
+ 
+@@ -169,15 +169,15 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_del(HashTable *ht, zend_string *key
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_del_ind(HashTable *ht, zend_string *key);
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *key, size_t len);
+ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del_ind(HashTable *ht, const char *key, size_t len);
+-ZEND_API zend_result ZEND_FASTCALL zend_hash_index_del(HashTable *ht, zend_ulong h);
++ZEND_API zend_result ZEND_FASTCALL zend_hash_index_del(HashTable *ht, HT_KEY_TYPE h);
+ ZEND_API void ZEND_FASTCALL zend_hash_del_bucket(HashTable *ht, Bucket *p);
+ ZEND_API void ZEND_FASTCALL zend_hash_packed_del_val(HashTable *ht, zval *zv);
+ 
+ /* Data retrieval */
+ ZEND_API zval* ZEND_FASTCALL zend_hash_find(const HashTable *ht, zend_string *key);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char *key, size_t len);
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_find(const HashTable *ht, zend_ulong h);
+-ZEND_API zval* ZEND_FASTCALL _zend_hash_index_find(const HashTable *ht, zend_ulong h);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_find(const HashTable *ht, HT_KEY_TYPE h);
++ZEND_API zval* ZEND_FASTCALL _zend_hash_index_find(const HashTable *ht, HT_KEY_TYPE h);
+ 
+ /* The same as zend_hash_find(), but hash value of the key must be already calculated. */
+ ZEND_API zval* ZEND_FASTCALL zend_hash_find_known_hash(const HashTable *ht, const zend_string *key);
+@@ -212,7 +212,7 @@ static zend_always_inline zval *zend_hash_find_ex(const HashTable *ht, zend_stri
+ 
+ /* Find or add NULL, if doesn't exist */
+ ZEND_API zval* ZEND_FASTCALL zend_hash_lookup(HashTable *ht, zend_string *key);
+-ZEND_API zval* ZEND_FASTCALL zend_hash_index_lookup(HashTable *ht, zend_ulong h);
++ZEND_API zval* ZEND_FASTCALL zend_hash_index_lookup(HashTable *ht, HT_KEY_TYPE h);
+ 
+ #define ZEND_HASH_INDEX_LOOKUP(_ht, _h, _ret) do { \
+ 		if (EXPECTED(HT_IS_PACKED(_ht))) { \
+@@ -237,7 +237,7 @@ static zend_always_inline bool zend_hash_str_exists(const HashTable *ht, const c
+ 	return zend_hash_str_find(ht, str, len) != NULL;
+ }
+ 
+-static zend_always_inline bool zend_hash_index_exists(const HashTable *ht, zend_ulong h)
++static zend_always_inline bool zend_hash_index_exists(const HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	return zend_hash_index_find(ht, h) != NULL;
+ }
+@@ -247,7 +247,7 @@ ZEND_API HashPosition ZEND_FASTCALL zend_hash_get_current_pos(const HashTable *h
+ 
+ ZEND_API zend_result   ZEND_FASTCALL zend_hash_move_forward_ex(HashTable *ht, HashPosition *pos);
+ ZEND_API zend_result   ZEND_FASTCALL zend_hash_move_backwards_ex(HashTable *ht, HashPosition *pos);
+-ZEND_API int   ZEND_FASTCALL zend_hash_get_current_key_ex(const HashTable *ht, zend_string **str_index, zend_ulong *num_index, const HashPosition *pos);
++ZEND_API int   ZEND_FASTCALL zend_hash_get_current_key_ex(const HashTable *ht, zend_string **str_index, HT_KEY_TYPE *num_index, const HashPosition *pos);
+ ZEND_API void  ZEND_FASTCALL zend_hash_get_current_key_zval_ex(const HashTable *ht, zval *key, const HashPosition *pos);
+ ZEND_API int   ZEND_FASTCALL zend_hash_get_current_key_type_ex(HashTable *ht, HashPosition *pos);
+ ZEND_API zval* ZEND_FASTCALL zend_hash_get_current_data_ex(HashTable *ht, HashPosition *pos);
+@@ -266,7 +266,7 @@ static zend_always_inline zend_result zend_hash_move_forward(HashTable *ht) {
+ static zend_always_inline zend_result zend_hash_move_backwards(HashTable *ht) {
+ 	return zend_hash_move_backwards_ex(ht, &ht->nInternalPointer);
+ }
+-static zend_always_inline int zend_hash_get_current_key(const HashTable *ht, zend_string **str_index, zend_ulong *num_index) {
++static zend_always_inline int zend_hash_get_current_key(const HashTable *ht, zend_string **str_index, HT_KEY_TYPE *num_index) {
+ 	return zend_hash_get_current_key_ex(ht, str_index, num_index, &ht->nInternalPointer);
+ }
+ static zend_always_inline void zend_hash_get_current_key_zval(const HashTable *ht, zval *key) {
+@@ -339,7 +339,7 @@ ZEND_API void ZEND_FASTCALL zend_symtable_clean(HashTable *ht);
+ ZEND_API HashTable* ZEND_FASTCALL zend_symtable_to_proptable(HashTable *ht);
+ ZEND_API HashTable* ZEND_FASTCALL zend_proptable_to_symtable(HashTable *ht, bool always_duplicate);
+ 
+-ZEND_API bool ZEND_FASTCALL _zend_handle_numeric_str_ex(const char *key, size_t length, zend_ulong *idx);
++ZEND_API bool ZEND_FASTCALL _zend_handle_numeric_str_ex(const char *key, size_t length, HT_KEY_TYPE *idx);
+ 
+ ZEND_API uint32_t     ZEND_FASTCALL zend_hash_iterator_add(HashTable *ht, HashPosition pos);
+ ZEND_API HashPosition ZEND_FASTCALL zend_hash_iterator_pos(uint32_t idx, HashTable *ht);
+@@ -385,7 +385,7 @@ END_EXTERN_C()
+ #define ZEND_INIT_SYMTABLE_EX(ht, n, persistent)			\
+ 	zend_hash_init(ht, n, NULL, ZVAL_PTR_DTOR, persistent)
+ 
+-static zend_always_inline bool _zend_handle_numeric_str(const char *key, size_t length, zend_ulong *idx)
++static zend_always_inline bool _zend_handle_numeric_str(const char *key, size_t length, HT_KEY_TYPE *idx)
+ {
+ 	const char *tmp = key;
+ 
+@@ -461,7 +461,7 @@ static zend_always_inline bool zend_hash_str_exists_ind(const HashTable *ht, con
+ 
+ static zend_always_inline zval *zend_symtable_add_new(HashTable *ht, zend_string *key, zval *pData)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_add_new(ht, idx, pData);
+@@ -472,7 +472,7 @@ static zend_always_inline zval *zend_symtable_add_new(HashTable *ht, zend_string
+ 
+ static zend_always_inline zval *zend_symtable_update(HashTable *ht, zend_string *key, zval *pData)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_update(ht, idx, pData);
+@@ -484,7 +484,7 @@ static zend_always_inline zval *zend_symtable_update(HashTable *ht, zend_string
+ 
+ static zend_always_inline zval *zend_symtable_update_ind(HashTable *ht, zend_string *key, zval *pData)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_update(ht, idx, pData);
+@@ -496,7 +496,7 @@ static zend_always_inline zval *zend_symtable_update_ind(HashTable *ht, zend_str
+ 
+ static zend_always_inline zend_result zend_symtable_del(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_del(ht, idx);
+@@ -508,7 +508,7 @@ static zend_always_inline zend_result zend_symtable_del(HashTable *ht, zend_stri
+ 
+ static zend_always_inline zend_result zend_symtable_del_ind(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_del(ht, idx);
+@@ -520,7 +520,7 @@ static zend_always_inline zend_result zend_symtable_del_ind(HashTable *ht, zend_
+ 
+ static zend_always_inline zval *zend_symtable_find(const HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_find(ht, idx);
+@@ -532,7 +532,7 @@ static zend_always_inline zval *zend_symtable_find(const HashTable *ht, zend_str
+ 
+ static zend_always_inline zval *zend_symtable_find_ind(const HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_find(ht, idx);
+@@ -544,7 +544,7 @@ static zend_always_inline zval *zend_symtable_find_ind(const HashTable *ht, zend
+ 
+ static zend_always_inline bool zend_symtable_exists(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_exists(ht, idx);
+@@ -556,7 +556,7 @@ static zend_always_inline bool zend_symtable_exists(HashTable *ht, zend_string *
+ 
+ static zend_always_inline bool zend_symtable_exists_ind(HashTable *ht, zend_string *key)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC(key, idx)) {
+ 		return zend_hash_index_exists(ht, idx);
+@@ -568,7 +568,7 @@ static zend_always_inline bool zend_symtable_exists_ind(HashTable *ht, zend_stri
+ 
+ static zend_always_inline zval *zend_symtable_str_update(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_update(ht, idx, pData);
+@@ -580,7 +580,7 @@ static zend_always_inline zval *zend_symtable_str_update(HashTable *ht, const ch
+ 
+ static zend_always_inline zval *zend_symtable_str_update_ind(HashTable *ht, const char *str, size_t len, zval *pData)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_update(ht, idx, pData);
+@@ -592,7 +592,7 @@ static zend_always_inline zval *zend_symtable_str_update_ind(HashTable *ht, cons
+ 
+ static zend_always_inline zend_result zend_symtable_str_del(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_del(ht, idx);
+@@ -604,7 +604,7 @@ static zend_always_inline zend_result zend_symtable_str_del(HashTable *ht, const
+ 
+ static zend_always_inline zend_result zend_symtable_str_del_ind(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_del(ht, idx);
+@@ -616,7 +616,7 @@ static zend_always_inline zend_result zend_symtable_str_del_ind(HashTable *ht, c
+ 
+ static zend_always_inline zval *zend_symtable_str_find(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_find(ht, idx);
+@@ -628,7 +628,7 @@ static zend_always_inline zval *zend_symtable_str_find(HashTable *ht, const char
+ 
+ static zend_always_inline bool zend_symtable_str_exists(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_exists(ht, idx);
+@@ -783,7 +783,7 @@ static zend_always_inline void *zend_hash_str_update_mem(HashTable *ht, const ch
+ 	return zend_hash_str_update_ptr(ht, str, len, p);
+ }
+ 
+-static zend_always_inline void *zend_hash_index_add_ptr(HashTable *ht, zend_ulong h, void *pData)
++static zend_always_inline void *zend_hash_index_add_ptr(HashTable *ht, HT_KEY_TYPE h, void *pData)
+ {
+ 	zval tmp, *zv;
+ 
+@@ -792,7 +792,7 @@ static zend_always_inline void *zend_hash_index_add_ptr(HashTable *ht, zend_ulon
+ 	return zv ? Z_PTR_P(zv) : NULL;
+ }
+ 
+-static zend_always_inline void *zend_hash_index_add_new_ptr(HashTable *ht, zend_ulong h, void *pData)
++static zend_always_inline void *zend_hash_index_add_new_ptr(HashTable *ht, HT_KEY_TYPE h, void *pData)
+ {
+ 	zval tmp, *zv;
+ 
+@@ -801,7 +801,7 @@ static zend_always_inline void *zend_hash_index_add_new_ptr(HashTable *ht, zend_
+ 	return zv ? Z_PTR_P(zv) : NULL;
+ }
+ 
+-static zend_always_inline void *zend_hash_index_update_ptr(HashTable *ht, zend_ulong h, void *pData)
++static zend_always_inline void *zend_hash_index_update_ptr(HashTable *ht, HT_KEY_TYPE h, void *pData)
+ {
+ 	zval tmp, *zv;
+ 
+@@ -811,7 +811,7 @@ static zend_always_inline void *zend_hash_index_update_ptr(HashTable *ht, zend_u
+ 	return Z_PTR_P(zv);
+ }
+ 
+-static zend_always_inline void *zend_hash_index_add_mem(HashTable *ht, zend_ulong h, void *pData, size_t size)
++static zend_always_inline void *zend_hash_index_add_mem(HashTable *ht, HT_KEY_TYPE h, void *pData, size_t size)
+ {
+ 	zval tmp, *zv;
+ 
+@@ -838,7 +838,7 @@ static zend_always_inline void *zend_hash_next_index_insert_ptr(HashTable *ht, v
+ 	}
+ }
+ 
+-static zend_always_inline void *zend_hash_index_update_mem(HashTable *ht, zend_ulong h, void *pData, size_t size)
++static zend_always_inline void *zend_hash_index_update_mem(HashTable *ht, HT_KEY_TYPE h, void *pData, size_t size)
+ {
+ 	void *p;
+ 
+@@ -907,7 +907,7 @@ ZEND_API void *zend_hash_str_find_ptr_lc(const HashTable *ht, const char *str, s
+  * anything else. If you have a lowered string, use zend_hash_find_ptr. */
+ ZEND_API void *zend_hash_find_ptr_lc(const HashTable *ht, zend_string *key);
+ 
+-static zend_always_inline void *zend_hash_index_find_ptr(const HashTable *ht, zend_ulong h)
++static zend_always_inline void *zend_hash_index_find_ptr(const HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	zval *zv;
+ 
+@@ -920,7 +920,7 @@ static zend_always_inline void *zend_hash_index_find_ptr(const HashTable *ht, ze
+ 	}
+ }
+ 
+-static zend_always_inline zval *zend_hash_index_find_deref(HashTable *ht, zend_ulong h)
++static zend_always_inline zval *zend_hash_index_find_deref(HashTable *ht, HT_KEY_TYPE h)
+ {
+ 	zval *zv = zend_hash_index_find(ht, h);
+ 	if (zv) {
+@@ -949,7 +949,7 @@ static zend_always_inline zval *zend_hash_str_find_deref(HashTable *ht, const ch
+ 
+ static zend_always_inline void *zend_symtable_str_find_ptr(HashTable *ht, const char *str, size_t len)
+ {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	if (ZEND_HANDLE_NUMERIC_STR(str, len, idx)) {
+ 		return zend_hash_index_find_ptr(ht, idx);
+@@ -1014,7 +1014,7 @@ static zend_always_inline void *zend_hash_get_current_data_ptr_ex(HashTable *ht,
+ 
+ #define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from) do { \
+ 		HashTable *__ht = (_ht); \
+-		zend_ulong __h; \
++		HT_KEY_TYPE __h; \
+ 		zend_string *__key = NULL; \
+ 		uint32_t _idx = (_from); \
+ 		size_t _size = ZEND_HASH_ELEMENT_SIZE(__ht); \
+@@ -1044,7 +1044,7 @@ static zend_always_inline void *zend_hash_get_current_data_ptr_ex(HashTable *ht,
+ 		HashTable *__ht = (_ht); \
+ 		uint32_t _idx = __ht->nNumUsed; \
+ 		zval *_z; \
+-		zend_ulong __h; \
++		HT_KEY_TYPE __h; \
+ 		zend_string *__key = NULL; \
+ 		size_t _size = ZEND_HASH_ELEMENT_SIZE(__ht); \
+ 		zval *__z = ZEND_HASH_ELEMENT_EX(__ht, _idx, _size); \
+@@ -1439,7 +1439,7 @@ static zend_always_inline void *zend_hash_get_current_data_ptr_ex(HashTable *ht,
+ /* Packed array iterators */
+ #define ZEND_HASH_PACKED_FOREACH_FROM(_ht, _from) do { \
+ 		HashTable *__ht = (_ht); \
+-		zend_ulong _idx = (_from); \
++		HT_KEY_TYPE _idx = (_from); \
+ 		zval *_z = __ht->arPacked + (_from); \
+ 		zval *_end = __ht->arPacked + __ht->nNumUsed; \
+ 		ZEND_ASSERT(HT_IS_PACKED(__ht)); \
+@@ -1451,7 +1451,7 @@ static zend_always_inline void *zend_hash_get_current_data_ptr_ex(HashTable *ht,
+ 
+ #define ZEND_HASH_PACKED_REVERSE_FOREACH(_ht) do { \
+ 		HashTable *__ht = (_ht); \
+-		zend_ulong _idx = __ht->nNumUsed; \
++		HT_KEY_TYPE _idx = __ht->nNumUsed; \
+ 		zval *_z = __ht->arPacked + _idx; \
+ 		ZEND_ASSERT(HT_IS_PACKED(__ht)); \
+ 		while (_idx > 0) { \
+@@ -1570,8 +1570,8 @@ static zend_always_inline void *zend_hash_get_current_data_ptr_ex(HashTable *ht,
+ /* Check if an array is a list */
+ static zend_always_inline bool zend_array_is_list(zend_array *array)
+ {
+-	zend_ulong expected_idx = 0;
+-	zend_ulong num_idx;
++	HT_KEY_TYPE expected_idx = 0;
++	HT_KEY_TYPE num_idx;
+ 	zend_string* str_idx;
+ 	/* Empty arrays are lists */
+ 	if (zend_hash_num_elements(array) == 0) {
+diff --git Zend/zend_inheritance.c Zend/zend_inheritance.c
+index 6362090ada9..71e27e56f4c 100644
+--- Zend/zend_inheritance.c
++++ Zend/zend_inheritance.c
+@@ -2674,13 +2674,13 @@ static void variance_obligation_ht_dtor(zval *zv) {
+ 
+ static HashTable *get_or_init_obligations_for_class(zend_class_entry *ce) {
+ 	HashTable *ht;
+-	zend_ulong key;
++	HT_KEY_TYPE key;
+ 	if (!CG(delayed_variance_obligations)) {
+ 		ALLOC_HASHTABLE(CG(delayed_variance_obligations));
+ 		zend_hash_init(CG(delayed_variance_obligations), 0, NULL, variance_obligation_ht_dtor, 0);
+ 	}
+ 
+-	key = (zend_ulong) (uintptr_t) ce;
++	key = (HT_KEY_TYPE) (uintptr_t) ce;
+ 	ht = zend_hash_index_find_ptr(CG(delayed_variance_obligations), key);
+ 	if (ht) {
+ 		return ht;
+@@ -2799,7 +2799,7 @@ static void load_delayed_classes(zend_class_entry *ce) {
+ 	 * if the new class is lower in the hierarchy than the current one. */
+ 	HashPosition pos = 0;
+ 	zend_string *name;
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 	while (zend_hash_get_current_key_ex(delayed_autoloads, &name, &idx, &pos)
+ 			!= HASH_KEY_NON_EXISTENT) {
+ 		zend_string_addref(name);
+@@ -2816,7 +2816,7 @@ static void load_delayed_classes(zend_class_entry *ce) {
+ 
+ static void resolve_delayed_variance_obligations(zend_class_entry *ce) {
+ 	HashTable *all_obligations = CG(delayed_variance_obligations), *obligations;
+-	zend_ulong num_key = (zend_ulong) (uintptr_t) ce;
++	HT_KEY_TYPE num_key = (HT_KEY_TYPE) (uintptr_t) ce;
+ 
+ 	ZEND_ASSERT(all_obligations != NULL);
+ 	obligations = zend_hash_index_find_ptr(all_obligations, num_key);
+diff --git Zend/zend_long.h Zend/zend_long.h
+index 3796f1c5aba..8c7e195a093 100644
+--- Zend/zend_long.h
++++ Zend/zend_long.h
+@@ -23,7 +23,7 @@
+ #include <stdint.h>
+ 
+ /* This is the heart of the whole int64 enablement in zval. */
+-#if defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64)
++#if defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64) || defined(__CHERI_PURE_CAPABILITY__)
+ # define ZEND_ENABLE_ZVAL_LONG64 1
+ #endif
+ 
+diff --git Zend/zend_operators.c Zend/zend_operators.c
+index 8853d24549f..dd7c949110d 100644
+--- Zend/zend_operators.c
++++ Zend/zend_operators.c
+@@ -3009,7 +3009,7 @@ ZEND_API char* ZEND_FASTCALL zend_str_tolower_dup_ex(const char *source, size_t
+ 			if (p != (const unsigned char*)source) {
+ 				memcpy(res, source, p - (const unsigned char*)source);
+ 			}
+-			r = (unsigned char*)p + (res - source);
++			r = (unsigned char*)res + (p - (unsigned char*)source);
+ 			zend_str_tolower_impl((char *)r, (const char*)p, end - p);
+ 			res[length] = '\0';
+ 			return res;
+diff --git Zend/zend_types.h Zend/zend_types.h
+index c4a07f58874..0a123414d49 100644
+--- Zend/zend_types.h
++++ Zend/zend_types.h
+@@ -377,9 +377,16 @@ struct _zend_string {
+ 	char              val[1];
+ };
+ 
++
++#ifdef __CHERI_PURE_CAPABILITY__
++# define HT_KEY_TYPE uintptr_t
++#else
++# define HT_KEY_TYPE zend_ulong
++#endif
++
+ typedef struct _Bucket {
+ 	zval              val;
+-	zend_ulong        h;                /* hash value (or numeric index)   */
++	HT_KEY_TYPE       h;                /* hash value (or numeric index)   */
+ 	zend_string      *key;              /* string key or NULL for numerics */
+ } Bucket;
+ 
+@@ -428,7 +435,11 @@ struct _zend_array {
+ 
+ #define HT_INVALID_IDX ((uint32_t) -1)
+ 
+-#define HT_MIN_MASK ((uint32_t) -2)
++#ifdef __CHERI_PURE_CAPABILITY__
++# define HT_MIN_MASK ((uint32_t) -4)
++#else
++# define HT_MIN_MASK ((uint32_t) -2)
++#endif
+ #define HT_MIN_SIZE 8
+ 
+ /* HT_MAX_SIZE is chosen to satisfy the following constraints:
+@@ -532,10 +543,8 @@ struct _zend_array {
+ # define HT_HASH_RESET(ht) \
+ 	memset(&HT_HASH(ht, (ht)->nTableMask), HT_INVALID_IDX, HT_HASH_SIZE((ht)->nTableMask))
+ #endif
+-#define HT_HASH_RESET_PACKED(ht) do { \
+-		HT_HASH(ht, -2) = HT_INVALID_IDX; \
+-		HT_HASH(ht, -1) = HT_INVALID_IDX; \
+-	} while (0)
++#define HT_HASH_RESET_PACKED(ht) \
++	memset(HT_GET_DATA_ADDR(ht), HT_INVALID_IDX, HT_HASH_SIZE((ht)->nTableMask))
+ #define HT_HASH_TO_BUCKET(ht, idx) \
+ 	HT_HASH_TO_BUCKET_EX((ht)->arData, idx)
+ 
+@@ -1021,7 +1030,7 @@ static zend_always_inline uint32_t zval_gc_info(uint32_t gc_type_info) {
+ #define Z_AST(zval)					(zval).value.ast
+ #define Z_AST_P(zval_p)				Z_AST(*(zval_p))
+ 
+-#define GC_AST(p)					((zend_ast*)(((char*)p) + sizeof(zend_ast_ref)))
++#define GC_AST(p)					((zend_ast*)(((char*)p) + ZEND_MM_ALIGNED_SIZE(sizeof(zend_ast_ref))))
+ 
+ #define Z_ASTVAL(zval)				GC_AST(Z_AST(zval))
+ #define Z_ASTVAL_P(zval_p)			Z_ASTVAL(*(zval_p))
+diff --git Zend/zend_vm_def.h Zend/zend_vm_def.h
+index f731653a248..98044043c67 100644
+--- Zend/zend_vm_def.h
++++ Zend/zend_vm_def.h
+@@ -6078,7 +6078,7 @@ ZEND_VM_HANDLER(72, ZEND_ADD_ARRAY_ELEMENT, CONST|TMP|VAR|CV, CONST|TMPVAR|UNUSE
+ 	if (OP2_TYPE != IS_UNUSED) {
+ 		zval *offset = GET_OP2_ZVAL_PTR_UNDEF(BP_VAR_R);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ ZEND_VM_C_LABEL(add_again):
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -6233,7 +6233,7 @@ ZEND_VM_C_LABEL(add_unpack_again):
+ 				ZVAL_DEREF(val);
+ 				Z_TRY_ADDREF_P(val);
+ 
+-				zend_ulong num_key;
++				HT_KEY_TYPE num_key;
+ 				if (Z_TYPE(key) == IS_STRING && !ZEND_HANDLE_NUMERIC(Z_STR(key), num_key)) {
+ 					zend_hash_update(result_ht, Z_STR(key), val);
+ 					zval_ptr_dtor_str(&key);
+@@ -6577,7 +6577,7 @@ ZEND_VM_HANDLER(75, ZEND_UNSET_DIM, VAR|CV, CONST|TMPVAR|CV)
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -7362,7 +7362,7 @@ ZEND_VM_COLD_CONSTCONST_HANDLER(115, ZEND_ISSET_ISEMPTY_DIM_OBJ, CONST|TMPVAR|CV
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+diff --git Zend/zend_vm_execute.h Zend/zend_vm_execute.h
+index 0f221688fdc..704deb6080b 100644
+--- Zend/zend_vm_execute.h
++++ Zend/zend_vm_execute.h
+@@ -2738,7 +2738,7 @@ add_unpack_again:
+ 				ZVAL_DEREF(val);
+ 				Z_TRY_ADDREF_P(val);
+ 
+-				zend_ulong num_key;
++				HT_KEY_TYPE num_key;
+ 				if (Z_TYPE(key) == IS_STRING && !ZEND_HANDLE_NUMERIC(Z_STR(key), num_key)) {
+ 					zend_hash_update(result_ht, Z_STR(key), val);
+ 					zval_ptr_dtor_str(&key);
+@@ -7355,7 +7355,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CONST_C
+ 	if (IS_CONST != IS_UNUSED) {
+ 		zval *offset = RT_CONSTANT(opline, opline->op2);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -7434,7 +7434,7 @@ static ZEND_VM_COLD ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -9686,7 +9686,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CONST_T
+ 	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
+ 		zval *offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -9765,7 +9765,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CON
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -10616,7 +10616,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CONST_U
+ 	if (IS_UNUSED != IS_UNUSED) {
+ 		zval *offset = NULL;
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -12072,7 +12072,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CONST_C
+ 	if (IS_CV != IS_UNUSED) {
+ 		zval *offset = EX_VAR(opline->op2.var);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -12151,7 +12151,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CON
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -16272,7 +16272,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_TMP
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -17689,7 +17689,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_TMP
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -19049,7 +19049,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_TMP
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -20100,7 +20100,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_TMP_CON
+ 	if (IS_CONST != IS_UNUSED) {
+ 		zval *offset = RT_CONSTANT(opline, opline->op2);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -20544,7 +20544,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_TMP_TMP
+ 	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
+ 		zval *offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -21005,7 +21005,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_TMP_UNU
+ 	if (IS_UNUSED != IS_UNUSED) {
+ 		zval *offset = NULL;
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -21409,7 +21409,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_TMP_CV_
+ 	if (IS_CV != IS_UNUSED) {
+ 		zval *offset = EX_VAR(opline->op2.var);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -25238,7 +25238,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_VAR_CON
+ 	if (IS_CONST != IS_UNUSED) {
+ 		zval *offset = RT_CONSTANT(opline, opline->op2);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -25317,7 +25317,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_VAR_CONST_HANDL
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -27688,7 +27688,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_VAR_TMP
+ 	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
+ 		zval *offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -27767,7 +27767,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_VAR_TMPVAR_HAND
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -29766,7 +29766,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_VAR_UNU
+ 	if (IS_UNUSED != IS_UNUSED) {
+ 		zval *offset = NULL;
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -32076,7 +32076,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_VAR_CV_
+ 	if (IS_CV != IS_UNUSED) {
+ 		zval *offset = EX_VAR(opline->op2.var);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -32155,7 +32155,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_VAR_CV_HANDLER(
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -43782,7 +43782,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CV_CONS
+ 	if (IS_CONST != IS_UNUSED) {
+ 		zval *offset = RT_CONSTANT(opline, opline->op2);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -43861,7 +43861,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLE
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -43996,7 +43996,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -47422,7 +47422,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CV_TMPV
+ 	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
+ 		zval *offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -47501,7 +47501,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_CV_TMPVAR_HANDL
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -47638,7 +47638,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+@@ -49391,7 +49391,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CV_UNUS
+ 	if (IS_UNUSED != IS_UNUSED) {
+ 		zval *offset = NULL;
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -52909,7 +52909,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ADD_ARRAY_ELEMENT_SPEC_CV_CV_H
+ 	if (IS_CV != IS_UNUSED) {
+ 		zval *offset = EX_VAR(opline->op2.var);
+ 		zend_string *str;
+-		zend_ulong hval;
++		HT_KEY_TYPE hval;
+ 
+ add_again:
+ 		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
+@@ -52988,7 +52988,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_UNSET_DIM_SPEC_CV_CV_HANDLER(Z
+ 	USE_OPLINE
+ 	zval *container;
+ 	zval *offset;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zend_string *key;
+ 
+ 	SAVE_OPLINE();
+@@ -53123,7 +53123,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_
+ 	USE_OPLINE
+ 	zval *container;
+ 	bool result;
+-	zend_ulong hval;
++	HT_KEY_TYPE hval;
+ 	zval *offset;
+ 
+ 	SAVE_OPLINE();
+diff --git Zend/zend_weakrefs.c Zend/zend_weakrefs.c
+index 442b19fb62a..34c4665c590 100644
+--- Zend/zend_weakrefs.c
++++ Zend/zend_weakrefs.c
+@@ -97,7 +97,7 @@ static void zend_weakref_unref(zend_object *object, void *tagged_ptr) {
+ static void zend_weakref_register(zend_object *object, void *payload) {
+ 	GC_ADD_FLAGS(object, IS_OBJ_WEAKLY_REFERENCED);
+ 
+-	zend_ulong obj_key = zend_object_to_weakref_key(object);
++	HT_KEY_TYPE obj_key = zend_object_to_weakref_key(object);
+ 	zval *zv = zend_hash_index_lookup(&EG(weakrefs), obj_key);
+ 	if (Z_TYPE_P(zv) == IS_NULL) {
+ 		ZVAL_PTR(zv, payload);
+@@ -107,21 +107,21 @@ static void zend_weakref_register(zend_object *object, void *payload) {
+ 	void *tagged_ptr = Z_PTR_P(zv);
+ 	if (ZEND_WEAKREF_GET_TAG(tagged_ptr) == ZEND_WEAKREF_TAG_HT) {
+ 		HashTable *ht = ZEND_WEAKREF_GET_PTR(tagged_ptr);
+-		zend_hash_index_add_new_ptr(ht, (zend_ulong) payload, payload);
++		zend_hash_index_add_new_ptr(ht, (HT_KEY_TYPE) payload, payload);
+ 		return;
+ 	}
+ 
+ 	/* Convert simple pointer to hashtable. */
+ 	HashTable *ht = emalloc(sizeof(HashTable));
+ 	zend_hash_init(ht, 0, NULL, NULL, 0);
+-	zend_hash_index_add_new_ptr(ht, (zend_ulong) tagged_ptr, tagged_ptr);
+-	zend_hash_index_add_new_ptr(ht, (zend_ulong) payload, payload);
++	zend_hash_index_add_new_ptr(ht, (HT_KEY_TYPE) tagged_ptr, tagged_ptr);
++	zend_hash_index_add_new_ptr(ht, (HT_KEY_TYPE) payload, payload);
+ 	/* Replace the single WeakMap or WeakReference entry in EG(weakrefs) with a HashTable with 2 entries in place. */
+ 	ZVAL_PTR(zv, ZEND_WEAKREF_ENCODE(ht, ZEND_WEAKREF_TAG_HT));
+ }
+ 
+ static void zend_weakref_unregister(zend_object *object, void *payload, bool weakref_free) {
+-	zend_ulong obj_key = zend_object_to_weakref_key(object);
++	HT_KEY_TYPE obj_key = zend_object_to_weakref_key(object);
+ 	void *tagged_ptr = zend_hash_index_find_ptr(&EG(weakrefs), obj_key);
+ 	ZEND_ASSERT(tagged_ptr && "Weakref not registered?");
+ 
+@@ -144,11 +144,11 @@ static void zend_weakref_unregister(zend_object *object, void *payload, bool wea
+ 
+ 	HashTable *ht = ptr;
+ #if ZEND_DEBUG
+-	void *old_payload = zend_hash_index_find_ptr(ht, (zend_ulong) payload);
++	void *old_payload = zend_hash_index_find_ptr(ht, (HT_KEY_TYPE) payload);
+ 	ZEND_ASSERT(old_payload && "Weakref not registered?");
+ 	ZEND_ASSERT(old_payload == payload);
+ #endif
+-	zend_hash_index_del(ht, (zend_ulong) payload);
++	zend_hash_index_del(ht, (HT_KEY_TYPE) payload);
+ 	if (zend_hash_num_elements(ht) == 0) {
+ 		GC_DEL_FLAGS(object, IS_OBJ_WEAKLY_REFERENCED);
+ 		zend_hash_destroy(ht);
+@@ -192,7 +192,7 @@ void zend_weakrefs_init(void) {
+ void zend_weakrefs_notify(zend_object *object) {
+ 	/* Annoyingly we can't use the HT destructor here, because we need access to the key (which
+ 	 * is the object address), which is not provided to the dtor. */
+-	const zend_ulong obj_key = zend_object_to_weakref_key(object);
++	const HT_KEY_TYPE obj_key = zend_object_to_weakref_key(object);
+ 	void *tagged_ptr = zend_hash_index_find_ptr(&EG(weakrefs), obj_key);
+ #if ZEND_DEBUG
+ 	ZEND_ASSERT(tagged_ptr && "Tracking of the IS_OBJ_WEAKLY_REFERENCE flag should be precise");
+@@ -310,7 +310,7 @@ static zend_object *zend_weakmap_create_object(zend_class_entry *ce)
+ static void zend_weakmap_free_obj(zend_object *object)
+ {
+ 	zend_weakmap *wm = zend_weakmap_from(object);
+-	zend_ulong obj_key;
++	HT_KEY_TYPE obj_key;
+ 	ZEND_HASH_MAP_FOREACH_NUM_KEY(&wm->ht, obj_key) {
+ 		/* Optimization: Don't call zend_weakref_unref_single to free individual entries from wm->ht when unregistering (which would do a hash table lookup, call zend_hash_index_del, and skip over any bucket collisions).
+ 		 * Let freeing the corresponding values for WeakMap entries be done in zend_hash_destroy, freeing objects sequentially.
+@@ -368,7 +368,7 @@ static void zend_weakmap_write_dimension(zend_object *object, zval *offset, zval
+ 
+ 	zend_weakmap *wm = zend_weakmap_from(object);
+ 	zend_object *obj_addr = Z_OBJ_P(offset);
+-	zend_ulong obj_key = zend_object_to_weakref_key(obj_addr);
++	HT_KEY_TYPE obj_key = zend_object_to_weakref_key(obj_addr);
+ 	Z_TRY_ADDREF_P(value);
+ 
+ 	zval *zv = zend_hash_index_find(&wm->ht, obj_key);
+@@ -443,7 +443,7 @@ static HashTable *zend_weakmap_get_properties_for(zend_object *object, zend_prop
+ 	ALLOC_HASHTABLE(ht);
+ 	zend_hash_init(ht, zend_hash_num_elements(&wm->ht), NULL, ZVAL_PTR_DTOR, 0);
+ 
+-	zend_ulong obj_key;
++	HT_KEY_TYPE obj_key;
+ 	zval *val;
+ 	ZEND_HASH_MAP_FOREACH_NUM_KEY_VAL(&wm->ht, obj_key, val) {
+ 		zend_object *obj = zend_weakref_key_to_object(obj_key);
+@@ -477,7 +477,7 @@ HashTable *zend_weakmap_get_key_entry_gc(zend_object *object, zval **table, int
+ {
+ 	zend_weakmap *wm = zend_weakmap_from(object);
+ 	zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	zval *val;
+ 	ZEND_HASH_MAP_FOREACH_NUM_KEY_VAL(&wm->ht, h, val) {
+ 		zend_object *key = zend_weakref_key_to_object(h);
+@@ -503,7 +503,7 @@ HashTable *zend_weakmap_get_entry_gc(zend_object *object, zval **table, int *n)
+ HashTable *zend_weakmap_get_object_key_entry_gc(zend_object *object, zval **table, int *n)
+ {
+ 	zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
+-	const zend_ulong obj_key = zend_object_to_weakref_key(object);
++	const HT_KEY_TYPE obj_key = zend_object_to_weakref_key(object);
+ 	void *tagged_ptr = zend_hash_index_find_ptr(&EG(weakrefs), obj_key);
+ #if ZEND_DEBUG
+ 	ZEND_ASSERT(tagged_ptr && "Tracking of the IS_OBJ_WEAKLY_REFERENCE flag should be precise");
+@@ -538,7 +538,7 @@ HashTable *zend_weakmap_get_object_key_entry_gc(zend_object *object, zval **tabl
+ HashTable *zend_weakmap_get_object_entry_gc(zend_object *object, zval **table, int *n)
+ {
+ 	zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
+-	const zend_ulong obj_key = zend_object_to_weakref_key(object);
++	const HT_KEY_TYPE obj_key = zend_object_to_weakref_key(object);
+ 	void *tagged_ptr = zend_hash_index_find_ptr(&EG(weakrefs), obj_key);
+ #if ZEND_DEBUG
+ 	ZEND_ASSERT(tagged_ptr && "Tracking of the IS_OBJ_WEAKLY_REFERENCE flag should be precise");
+@@ -575,7 +575,7 @@ static zend_object *zend_weakmap_clone_obj(zend_object *old_object)
+ 	zend_weakmap *new_wm = zend_weakmap_from(new_object);
+ 	zend_hash_copy(&new_wm->ht, &old_wm->ht, NULL);
+ 
+-	zend_ulong obj_key;
++	HT_KEY_TYPE obj_key;
+ 	zval *val;
+ 	ZEND_HASH_MAP_FOREACH_NUM_KEY_VAL(&new_wm->ht, obj_key, val) {
+ 		zend_weakref_register(
+@@ -620,7 +620,7 @@ static void zend_weakmap_iterator_get_current_key(zend_object_iterator *obj_iter
+ 	HashPosition *pos = zend_weakmap_iterator_get_pos_ptr(iter);
+ 
+ 	zend_string *string_key;
+-	zend_ulong num_key;
++	HT_KEY_TYPE num_key;
+ 	int key_type = zend_hash_get_current_key_ex(&wm->ht, &string_key, &num_key, pos);
+ 	if (key_type != HASH_KEY_IS_LONG) {
+ 		ZEND_ASSERT(0 && "Must have integer key");
+diff --git Zend/zend_weakrefs.h Zend/zend_weakrefs.h
+index 5b1c8ea1c32..124c191efd7 100644
+--- Zend/zend_weakrefs.h
++++ Zend/zend_weakrefs.h
+@@ -51,15 +51,23 @@ static zend_always_inline void *zend_weakrefs_hash_add_ptr(HashTable *ht, zend_o
+  * It is not used for the HashTable instances associated with ZEND_WEAKREF_TAG_HT tags (created in zend_weakref_register, which uses ZEND_WEAKREF_ENCODE instead).
+  * The ZEND_WEAKREF_TAG_HT instances are used to disambiguate between multiple weak references to the same zend_object.
+  */
+-static zend_always_inline zend_ulong zend_object_to_weakref_key(const zend_object *object)
++static zend_always_inline HT_KEY_TYPE zend_object_to_weakref_key(const zend_object *object)
+ {
+ 	ZEND_ASSERT(((uintptr_t)object) % ZEND_MM_ALIGNMENT == 0);
++#ifdef __CHERI_PURE_CAPABILITY__
++	return (HT_KEY_TYPE)object;
++#else
+ 	return ((uintptr_t) object) >> ZEND_MM_ALIGNMENT_LOG2;
++#endif
+ }
+ 
+-static zend_always_inline zend_object *zend_weakref_key_to_object(zend_ulong key)
++static zend_always_inline zend_object *zend_weakref_key_to_object(HT_KEY_TYPE key)
+ {
++#ifdef __CHERI_PURE_CAPABILITY__
++	return (zend_object*)key;
++#else
+ 	return (zend_object *) (((uintptr_t) key) << ZEND_MM_ALIGNMENT_LOG2);
++#endif
+ }
+ 
+ HashTable *zend_weakmap_get_gc(zend_object *object, zval **table, int *n);
+diff --git build/php.m4 build/php.m4
+index 53ba3942317..c4c879f9569 100644
+--- build/php.m4
++++ build/php.m4
+@@ -2766,6 +2766,46 @@ AC_DEFUN([PHP_CHECK_BUILTIN_FRAME_ADDRESS], [
+    [$have_builtin_frame_address], [Whether the compiler supports __builtin_frame_address])
+ ])
+ 
++dnl
++dnl PHP_CHECK_BUILTIN_ALIGN_DOWN
++dnl
++AC_DEFUN([PHP_CHECK_BUILTIN_ALIGN_DOWN], [
++  AC_MSG_CHECKING([for __builtin_align_down])
++
++  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [[
++    return __builtin_align_down(1, 2) == 0 ? 1 : 0;
++  ]])], [
++    have_builtin_align_down=1
++    AC_MSG_RESULT([yes])
++  ], [
++    have_builtin_align_down=0
++    AC_MSG_RESULT([no])
++  ])
++
++  AC_DEFINE_UNQUOTED([PHP_HAVE_BUILTIN_ALIGN_DOWN],
++   [$have_builtin_align_down], [Whether the compiler supports __builtin_align_down])
++])
++
++dnl
++dnl PHP_CHECK_BUILTIN_ALIGN_UP
++dnl
++AC_DEFUN([PHP_CHECK_BUILTIN_ALIGN_UP], [
++  AC_MSG_CHECKING([for __builtin_align_up])
++
++  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [[
++    return __builtin_align_up(1, 2) == 2 ? 1 : 0;
++  ]])], [
++    have_builtin_align_up=1
++    AC_MSG_RESULT([yes])
++  ], [
++    have_builtin_align_up=0
++    AC_MSG_RESULT([no])
++  ])
++
++  AC_DEFINE_UNQUOTED([PHP_HAVE_BUILTIN_ALIGN_UP],
++   [$have_builtin_align_up], [Whether the compiler supports __builtin_align_up])
++])
++
+ dnl
+ dnl PHP_PATCH_CONFIG_HEADERS([FILE])
+ dnl
+diff --git configure.ac configure.ac
+index c2c15305910..720449f5849 100644
+--- configure.ac
++++ configure.ac
+@@ -524,6 +524,10 @@ dnl Check __builtin_cpu_supports
+ PHP_CHECK_BUILTIN_CPU_SUPPORTS
+ dnl Check __builtin_frame_address
+ PHP_CHECK_BUILTIN_FRAME_ADDRESS
++dnl Check __builtin_align_down
++PHP_CHECK_BUILTIN_ALIGN_DOWN
++dnl Check __builtin_align_up
++PHP_CHECK_BUILTIN_ALIGN_UP
+ dnl Check prctl
+ PHP_CHECK_PRCTL
+ dnl Check procctl
+@@ -1282,9 +1286,25 @@ AS_CASE([$host_os],
+   [fiber_os="other"]
+ )
+ 
+-AS_CASE([$fiber_cpu],
++if test "$fiber_cpu" = 'arm64'; then
++  AC_MSG_CHECKING([for CHERI-enabled AArch64])
++  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [[
++  #if !defined(__aarch64__) || !defined(__CHERI_PURE_CAPABILITY__)
++  #error "Not CHERI AArch64"
++  #endif
++  ]])],[
++    fiber_abi="-morello"
++    AC_MSG_RESULT([yes])
++  ],[
++    fiber_abi=""
++    AC_MSG_RESULT([no])
++  ])
++fi
++
++AS_CASE([$fiber_cpu$fiber_abi],
+   [x86_64], [fiber_asm_file_prefix="x86_64_sysv"],
+   [i386], [fiber_asm_file_prefix="i386_sysv"],
++  [arm64-morello], [fiber_asm_file_prefix="arm64_morello"],
+   [arm64], [fiber_asm_file_prefix="arm64_aapcs"],
+   [arm32], [fiber_asm_file_prefix="arm_aapcs"],
+   [ppc64], [fiber_asm_file_prefix="ppc64_sysv"],
+diff --git ext/date/lib/timelib.h ext/date/lib/timelib.h
+index 4582fcfd469..29fdfe86f96 100644
+--- ext/date/lib/timelib.h
++++ ext/date/lib/timelib.h
+@@ -109,7 +109,7 @@ typedef unsigned __int64  uint64_t;
+ # endif
+ #endif
+ 
+-#if (defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64)) && !defined(TIMELIB_FORCE_LONG32)
++#if (defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64) || defined(__CHERI_PURE_CAPABILITY__)) && !defined(TIMELIB_FORCE_LONG32)
+ typedef int64_t timelib_long;
+ typedef uint64_t timelib_ulong;
+ # define TIMELIB_LONG_MAX INT64_MAX
+diff --git ext/opcache/zend_file_cache.c ext/opcache/zend_file_cache.c
+index edcaf689ab7..c1207d2f464 100644
+--- ext/opcache/zend_file_cache.c
++++ ext/opcache/zend_file_cache.c
+@@ -187,7 +187,11 @@ static int zend_file_cache_flock(int fd, int type)
+ } while (0)
+ 
+ static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
++#ifdef __CHERI_PURE_CAPABILITY__
++	{HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX};
++#else
+ 	{HT_INVALID_IDX, HT_INVALID_IDX};
++#endif
+ 
+ typedef struct _zend_file_cache_metainfo {
+ 	char         magic[8];
+diff --git ext/opcache/zend_persist.c ext/opcache/zend_persist.c
+index b10e5a8046a..04207b8b333 100644
+--- ext/opcache/zend_persist.c
++++ ext/opcache/zend_persist.c
+@@ -87,7 +87,11 @@ static void zend_persist_zval(zval *z);
+ static void zend_persist_op_array(zval *zv);
+ 
+ static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
++#ifdef __CHERI_PURE_CAPABILITY__
++	{HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX, HT_INVALID_IDX};
++#else
+ 	{HT_INVALID_IDX, HT_INVALID_IDX};
++#endif
+ 
+ static void zend_hash_persist(HashTable *ht)
+ {
+diff --git ext/phar/dirstream.c ext/phar/dirstream.c
+index ab6986c8ef2..d1982f56a3d 100644
+--- ext/phar/dirstream.c
++++ ext/phar/dirstream.c
+@@ -91,7 +91,7 @@ static ssize_t phar_dir_read(php_stream *stream, char *buf, size_t count) /* {{{
+ {
+ 	HashTable *data = (HashTable *)stream->abstract;
+ 	zend_string *str_key;
+-	zend_ulong unused;
++	HT_KEY_TYPE unused;
+ 
+ 	if (count != sizeof(php_stream_dirent)) {
+ 		return -1;
+diff --git ext/spl/spl_array.c ext/spl/spl_array.c
+index 79802454e3f..1df106a8604 100644
+--- ext/spl/spl_array.c
++++ ext/spl/spl_array.c
+@@ -245,7 +245,7 @@ static zend_object *spl_array_object_clone(zend_object *old_object)
+ 
+ typedef struct {
+ 	zend_string *key;
+-	zend_ulong h;
++	HT_KEY_TYPE h;
+ 	bool release_key;
+ } spl_hash_key;
+ 
+@@ -908,7 +908,7 @@ static int spl_array_compare_objects(zval *o1, zval *o2) /* {{{ */
+ static zend_result spl_array_skip_protected(spl_array_object *intern, HashTable *aht) /* {{{ */
+ {
+ 	zend_string *string_key;
+-	zend_ulong num_key;
++	HT_KEY_TYPE num_key;
+ 	zval *data;
+ 
+ 	if (spl_array_is_object(intern)) {
+diff --git ext/spl/spl_fixedarray.c ext/spl/spl_fixedarray.c
+index 95ab191b778..b206053b2c7 100644
+--- ext/spl/spl_fixedarray.c
++++ ext/spl/spl_fixedarray.c
+@@ -332,7 +332,7 @@ static zend_long spl_offset_convert_to_long(zval *offset) /* {{{ */
+ 	try_again:
+ 	switch (Z_TYPE_P(offset)) {
+ 		case IS_STRING: {
+-			zend_ulong index;
++			HT_KEY_TYPE index;
+ 			if (ZEND_HANDLE_NUMERIC(Z_STR_P(offset), index)) {
+ 				return (zend_long) index;
+ 			}
+diff --git ext/standard/var_unserializer.re ext/standard/var_unserializer.re
+index a050fb5f74a..2d6f84642b3 100644
+--- ext/standard/var_unserializer.re
++++ ext/standard/var_unserializer.re
+@@ -481,7 +481,7 @@ static zend_always_inline int process_nested_array_data(UNSERIALIZE_PARAMETER, H
+ 
+ 	while (elements-- > 0) {
+ 		zval key, *data;
+-		zend_ulong idx;
++		HT_KEY_TYPE idx;
+ 
+ 		ZVAL_UNDEF(&key);
+ 
+diff --git main/php_variables.c main/php_variables.c
+index 15314869180..8e769455822 100644
+--- main/php_variables.c
++++ main/php_variables.c
+@@ -70,7 +70,7 @@ PHPAPI void php_register_known_variable(const char *var_name, size_t var_name_le
+ 	ZEND_ASSERT(!(var_name_len == strlen("this") && !memcmp(var_name, "this", strlen("this"))));
+ 
+ 	/* Assert that the variable name is not numeric */
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 	ZEND_ASSERT(!ZEND_HANDLE_NUMERIC_STR(var_name, var_name_len, idx));
+ 	/* ensure that we don't have null bytes, spaces, dots, or array bracket in the variable name (not binary safe) */
+ 	const char *p = var_name;
+@@ -291,7 +291,7 @@ PHPAPI void php_register_variable_ex(const char *var_name, zval *val, zval *trac
+ 				zval_ptr_dtor_nogc(val);
+ 			}
+ 		} else {
+-			zend_ulong idx;
++			HT_KEY_TYPE idx;
+ 
+ 			/*
+ 			 * According to rfc2965, more specific paths are listed above the less specific ones.
+@@ -589,7 +589,7 @@ static zend_always_inline void import_environment_variable(HashTable *ht, char *
+ 	char *p;
+ 	size_t name_len, len;
+ 	zval val;
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 
+ 	p = strchr(env, '=');
+ 	if (!p
+diff --git sapi/phpdbg/phpdbg_btree.c sapi/phpdbg/phpdbg_btree.c
+index 81571c17c01..1d69668dd0e 100644
+--- sapi/phpdbg/phpdbg_btree.c
++++ sapi/phpdbg/phpdbg_btree.c
+@@ -37,7 +37,7 @@ void phpdbg_btree_init(phpdbg_btree *tree, zend_ulong depth) {
+ 	tree->count = 0;
+ }
+ 
+-phpdbg_btree_result *phpdbg_btree_find(phpdbg_btree *tree, zend_ulong idx) {
++phpdbg_btree_result *phpdbg_btree_find(phpdbg_btree *tree, HT_KEY_TYPE idx) {
+ 	phpdbg_btree_branch *branch = tree->branch;
+ 	int i = tree->depth - 1;
+ 
+@@ -64,7 +64,7 @@ phpdbg_btree_result *phpdbg_btree_find(phpdbg_btree *tree, zend_ulong idx) {
+ 	return &branch->result;
+ }
+ 
+-phpdbg_btree_result *phpdbg_btree_find_closest(phpdbg_btree *tree, zend_ulong idx) {
++phpdbg_btree_result *phpdbg_btree_find_closest(phpdbg_btree *tree, HT_KEY_TYPE idx) {
+ 	phpdbg_btree_branch *branch = tree->branch;
+ 	int i = tree->depth - 1, last_superior_i = -1;
+ 
+@@ -119,7 +119,7 @@ phpdbg_btree_result *phpdbg_btree_find_closest(phpdbg_btree *tree, zend_ulong id
+ 	return &branch->result;
+ }
+ 
+-phpdbg_btree_position phpdbg_btree_find_between(phpdbg_btree *tree, zend_ulong lower_idx, zend_ulong higher_idx) {
++phpdbg_btree_position phpdbg_btree_find_between(phpdbg_btree *tree, HT_KEY_TYPE lower_idx, HT_KEY_TYPE higher_idx) {
+ 	phpdbg_btree_position pos;
+ 
+ 	pos.tree = tree;
+@@ -141,7 +141,7 @@ phpdbg_btree_result *phpdbg_btree_next(phpdbg_btree_position *pos) {
+ 	return result;
+ }
+ 
+-int phpdbg_btree_insert_or_update(phpdbg_btree *tree, zend_ulong idx, void *ptr, int flags) {
++int phpdbg_btree_insert_or_update(phpdbg_btree *tree, HT_KEY_TYPE idx, void *ptr, int flags) {
+ 	int i = tree->depth - 1;
+ 	phpdbg_btree_branch **branch = &tree->branch;
+ 
+@@ -176,7 +176,7 @@ int phpdbg_btree_insert_or_update(phpdbg_btree *tree, zend_ulong idx, void *ptr,
+ 	return SUCCESS;
+ }
+ 
+-int phpdbg_btree_delete(phpdbg_btree *tree, zend_ulong idx) {
++int phpdbg_btree_delete(phpdbg_btree *tree, HT_KEY_TYPE idx) {
+ 	int i = tree->depth;
+ 	phpdbg_btree_branch *branch = tree->branch;
+ 	int i_last_dual_branch = -1, last_dual_branch_branch;
+diff --git sapi/phpdbg/phpdbg_btree.h sapi/phpdbg/phpdbg_btree.h
+index bd0c1cf37a0..b4a0ce45be1 100644
+--- sapi/phpdbg/phpdbg_btree.h
++++ sapi/phpdbg/phpdbg_btree.h
+@@ -22,7 +22,7 @@
+ #include "zend.h"
+ 
+ typedef struct {
+-	zend_ulong idx;
++	HT_KEY_TYPE idx;
+ 	void *ptr;
+ } phpdbg_btree_result;
+ 
+@@ -47,17 +47,17 @@ typedef struct {
+ 
+ void phpdbg_btree_init(phpdbg_btree *tree, zend_ulong depth);
+ void phpdbg_btree_clean(phpdbg_btree *tree);
+-phpdbg_btree_result *phpdbg_btree_find(phpdbg_btree *tree, zend_ulong idx);
+-phpdbg_btree_result *phpdbg_btree_find_closest(phpdbg_btree *tree, zend_ulong idx);
+-phpdbg_btree_position phpdbg_btree_find_between(phpdbg_btree *tree, zend_ulong lower_idx, zend_ulong higher_idx);
++phpdbg_btree_result *phpdbg_btree_find(phpdbg_btree *tree, HT_KEY_TYPE idx);
++phpdbg_btree_result *phpdbg_btree_find_closest(phpdbg_btree *tree, HT_KEY_TYPE idx);
++phpdbg_btree_position phpdbg_btree_find_between(phpdbg_btree *tree, HT_KEY_TYPE lower_idx, HT_KEY_TYPE higher_idx);
+ phpdbg_btree_result *phpdbg_btree_next(phpdbg_btree_position *pos);
+-int phpdbg_btree_delete(phpdbg_btree *tree, zend_ulong idx);
++int phpdbg_btree_delete(phpdbg_btree *tree, HT_KEY_TYPE idx);
+ 
+ #define PHPDBG_BTREE_INSERT 1
+ #define PHPDBG_BTREE_UPDATE 2
+ #define PHPDBG_BTREE_OVERWRITE (PHPDBG_BTREE_INSERT | PHPDBG_BTREE_UPDATE)
+ 
+-int phpdbg_btree_insert_or_update(phpdbg_btree *tree, zend_ulong idx, void *ptr, int flags);
++int phpdbg_btree_insert_or_update(phpdbg_btree *tree, HT_KEY_TYPE idx, void *ptr, int flags);
+ #define phpdbg_btree_insert(tree, idx, ptr) phpdbg_btree_insert_or_update(tree, idx, ptr, PHPDBG_BTREE_INSERT)
+ #define phpdbg_btree_update(tree, idx, ptr) phpdbg_btree_insert_or_update(tree, idx, ptr, PHPDBG_BTREE_UPDATE)
+ #define phpdbg_btree_overwrite(tree, idx, ptr) phpdbg_btree_insert_or_update(tree, idx, ptr, PHPDBG_BTREE_OVERWRITE)
+diff --git sapi/phpdbg/phpdbg_watch.c sapi/phpdbg/phpdbg_watch.c
+index d4af608ff76..7f5ed77a6b7 100644
+--- sapi/phpdbg/phpdbg_watch.c
++++ sapi/phpdbg/phpdbg_watch.c
+@@ -217,7 +217,7 @@ void phpdbg_print_watch_diff(phpdbg_watchtype type, zend_string *name, void *old
+ /* ### LOW LEVEL WATCHPOINT HANDLING ### */
+ static phpdbg_watchpoint_t *phpdbg_check_for_watchpoint(phpdbg_btree *tree, void *addr) {
+ 	phpdbg_watchpoint_t *watch;
+-	phpdbg_btree_result *result = phpdbg_btree_find_closest(tree, (zend_ulong) phpdbg_get_page_boundary(addr) + phpdbg_pagesize - 1);
++	phpdbg_btree_result *result = phpdbg_btree_find_closest(tree, (HT_KEY_TYPE) phpdbg_get_page_boundary(addr) + phpdbg_pagesize - 1);
+ 
+ 	if (result == NULL) {
+ 		return NULL;
+@@ -235,7 +235,7 @@ static phpdbg_watchpoint_t *phpdbg_check_for_watchpoint(phpdbg_btree *tree, void
+ }
+ 
+ static void phpdbg_change_watchpoint_access(phpdbg_watchpoint_t *watch, int access) {
+-	void *page_addr = phpdbg_get_page_boundary(watch->addr.ptr);
++	void *page_addr = zend_mm_page_ptr(watch->addr.ptr);
+ 	size_t size = phpdbg_get_total_page_size(watch->addr.ptr, watch->size);
+ #ifdef HAVE_USERFAULTFD_WRITEFAULT
+ 	if (PHPDBG_G(watch_userfaultfd)) {
+@@ -284,7 +284,7 @@ int phpdbg_watchpoint_segfault_handler(void *addr) {
+ int phpdbg_watchpoint_segfault_handler(siginfo_t *info, void *context) {
+ #endif
+ 
+-	void *page = phpdbg_get_page_boundary(
++	void *page = zend_mm_page_ptr(
+ #ifdef _WIN32
+ 		addr
+ #else
+@@ -300,7 +300,7 @@ int phpdbg_watchpoint_segfault_handler(siginfo_t *info, void *context) {
+ 	/* re-enable writing */
+ 	mprotect(page, phpdbg_pagesize, PROT_READ | PROT_WRITE);
+ 
+-	zend_hash_index_add_empty_element(PHPDBG_G(watchlist_mem), (zend_ulong) page);
++	zend_hash_index_add_empty_element(PHPDBG_G(watchlist_mem), (HT_KEY_TYPE) page);
+ 
+ 	return SUCCESS;
+ }
+@@ -316,7 +316,7 @@ void *phpdbg_watchpoint_userfaultfd_thread(void *phpdbg_globals) {
+ 	struct uffd_msg fault_msg = {0};
+ 	while (read(globals->watch_userfaultfd, &fault_msg, sizeof(fault_msg)) == sizeof(fault_msg)) {
+     	void *page = phpdbg_get_page_boundary((char *)(uintptr_t) fault_msg.arg.pagefault.address);
+-		zend_hash_index_add_empty_element(globals->watchlist_mem, (zend_ulong) page);
++		zend_hash_index_add_empty_element(globals->watchlist_mem, (HT_KEY_TYPE) page);
+ 		struct uffdio_writeprotect unprotect = {
+ 			.mode = 0,
+ 			.range = {
+@@ -334,12 +334,12 @@ void *phpdbg_watchpoint_userfaultfd_thread(void *phpdbg_globals) {
+ /* ### REGISTER WATCHPOINT ### To be used only by watch element and collision managers ### */
+ static inline void phpdbg_store_watchpoint_btree(phpdbg_watchpoint_t *watch) {
+ 	phpdbg_btree_result *res;
+-	ZEND_ASSERT((res = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (zend_ulong) watch->addr.ptr)) == NULL || res->ptr == watch);
+-	phpdbg_btree_insert(&PHPDBG_G(watchpoint_tree), (zend_ulong) watch->addr.ptr, watch);
++	ZEND_ASSERT((res = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (HT_KEY_TYPE) watch->addr.ptr)) == NULL || res->ptr == watch);
++	phpdbg_btree_insert(&PHPDBG_G(watchpoint_tree), (HT_KEY_TYPE) watch->addr.ptr, watch);
+ }
+ 
+ static inline void phpdbg_remove_watchpoint_btree(phpdbg_watchpoint_t *watch) {
+-	phpdbg_btree_delete(&PHPDBG_G(watchpoint_tree), (zend_ulong) watch->addr.ptr);
++	phpdbg_btree_delete(&PHPDBG_G(watchpoint_tree), (HT_KEY_TYPE) watch->addr.ptr);
+ }
+ 
+ /* ### SET WATCHPOINT ADDR ### To be used only by watch element and collision managers ### */
+@@ -391,8 +391,8 @@ void phpdbg_watch_backup_data(phpdbg_watchpoint_t *watch) {
+ /* watch collisions are responsible for having only one watcher on a given refcounted/refval and having a mapping back to the parent zvals */
+ void phpdbg_delete_watch_collision(phpdbg_watchpoint_t *watch) {
+ 	phpdbg_watch_collision *coll;
+-	if ((coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref))) {
+-		zend_hash_index_del(&coll->parents, (zend_ulong) watch);
++	if ((coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref))) {
++		zend_hash_index_del(&coll->parents, (HT_KEY_TYPE) watch);
+ 		if (zend_hash_num_elements(&coll->parents) == 0) {
+ 			phpdbg_remove_watchpoint_btree(&coll->ref);
+ 			phpdbg_deactivate_watchpoint(&coll->ref);
+@@ -408,7 +408,7 @@ void phpdbg_delete_watch_collision(phpdbg_watchpoint_t *watch) {
+ 				}
+ 			}
+ 
+-			zend_hash_index_del(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref);
++			zend_hash_index_del(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref);
+ 			zend_hash_destroy(&coll->parents);
+ 			efree(coll);
+ 		}
+@@ -430,7 +430,7 @@ void phpdbg_update_watch_ref(phpdbg_watchpoint_t *watch) {
+ 
+ 		watch->ref = Z_COUNTED_P(watch->addr.zv);
+ 
+-		if (!(coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref))) {
++		if (!(coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref))) {
+ 			coll = emalloc(sizeof(*coll));
+ 			coll->ref.type = WATCH_ON_REFCOUNTED;
+ 			phpdbg_set_addr_watchpoint(Z_COUNTED_P(watch->addr.zv), sizeof(uint32_t), &coll->ref);
+@@ -459,9 +459,9 @@ void phpdbg_update_watch_ref(phpdbg_watchpoint_t *watch) {
+ 			}
+ 
+ 			zend_hash_init(&coll->parents, 8, shitty stupid parameter, NULL, 0);
+-			zend_hash_index_add_ptr(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref, coll);
++			zend_hash_index_add_ptr(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref, coll);
+ 		}
+-		zend_hash_index_add_ptr(&coll->parents, (zend_long) watch, watch);
++		zend_hash_index_add_ptr(&coll->parents, (HT_KEY_TYPE) watch, watch);
+ 	} else if (Z_TYPE_P(watch->addr.zv) == IS_INDIRECT) {
+ 		if ((zend_refcounted *) Z_INDIRECT_P(watch->addr.zv) == watch->ref) {
+ 			return;
+@@ -473,7 +473,7 @@ void phpdbg_update_watch_ref(phpdbg_watchpoint_t *watch) {
+ 
+ 		watch->ref = (zend_refcounted *) Z_INDIRECT_P(watch->addr.zv);
+ 
+-		if (!(coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref))) {
++		if (!(coll = zend_hash_index_find_ptr(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref))) {
+ 			coll = emalloc(sizeof(*coll));
+ 			phpdbg_set_zval_watchpoint(Z_INDIRECT_P(watch->addr.zv), &coll->ref);
+ 			coll->ref.coll = coll;
+@@ -483,9 +483,9 @@ void phpdbg_update_watch_ref(phpdbg_watchpoint_t *watch) {
+ 			phpdbg_watch_backup_data(&coll->ref);
+ 
+ 			zend_hash_init(&coll->parents, 8, shitty stupid parameter, NULL, 0);
+-			zend_hash_index_add_ptr(&PHPDBG_G(watch_collisions), (zend_ulong) watch->ref, coll);
++			zend_hash_index_add_ptr(&PHPDBG_G(watch_collisions), (HT_KEY_TYPE) watch->ref, coll);
+ 		}
+-		zend_hash_index_add_ptr(&coll->parents, (zend_long) watch, watch);
++		zend_hash_index_add_ptr(&coll->parents, (HT_KEY_TYPE) watch, watch);
+ 	} else if (watch->ref) {
+ 		phpdbg_delete_watch_collision(watch);
+ 		watch->ref = NULL;
+@@ -502,7 +502,7 @@ void phpdbg_watch_parent_ht(phpdbg_watch_element *element);
+ 
+ phpdbg_watch_element *phpdbg_add_watch_element(phpdbg_watchpoint_t *watch, phpdbg_watch_element *element) {
+ 	phpdbg_btree_result *res;
+-	if ((res = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (zend_ulong) watch->addr.ptr)) == NULL) {
++	if ((res = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (HT_KEY_TYPE) watch->addr.ptr)) == NULL) {
+ 		phpdbg_watchpoint_t *mem = emalloc(sizeof(*mem));
+ 		*mem = *watch;
+ 		watch = mem;
+@@ -643,12 +643,12 @@ void phpdbg_watch_parent_ht(phpdbg_watch_element *element) {
+ 		HashPosition pos;
+ 		phpdbg_watch_ht_info *hti;
+ 		ZEND_ASSERT(element->parent_container);
+-		if (!(res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (zend_ulong) element->parent_container))) {
++		if (!(res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (HT_KEY_TYPE) element->parent_container))) {
+ 			hti = emalloc(sizeof(*hti));
+ 			hti->ht = element->parent_container;
+ 
+ 			zend_hash_init(&hti->watches, 0, grrrrr, ZVAL_PTR_DTOR, 0);
+-			phpdbg_btree_insert(&PHPDBG_G(watch_HashTables), (zend_ulong) hti->ht, hti);
++			phpdbg_btree_insert(&PHPDBG_G(watch_HashTables), (HT_KEY_TYPE) hti->ht, hti);
+ 
+ 			phpdbg_set_addr_watchpoint(HT_GET_DATA_ADDR(hti->ht), HT_HASH_SIZE(hti->ht->nTableMask), &hti->hash_watch);
+ 			hti->hash_watch.type = WATCH_ON_HASHDATA;
+@@ -669,14 +669,14 @@ void phpdbg_watch_parent_ht(phpdbg_watch_element *element) {
+ 
+ void phpdbg_unwatch_parent_ht(phpdbg_watch_element *element) {
+ 	if (element->watch->type == WATCH_ON_BUCKET) {
+-		phpdbg_btree_result *res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (zend_ulong) element->parent_container);
++		phpdbg_btree_result *res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (HT_KEY_TYPE) element->parent_container);
+ 		ZEND_ASSERT(element->parent_container);
+ 		if (res) {
+ 			phpdbg_watch_ht_info *hti = res->ptr;
+ 
+ 			if (zend_hash_num_elements(&hti->watches) == 1) {
+ 				zend_hash_destroy(&hti->watches);
+-				phpdbg_btree_delete(&PHPDBG_G(watch_HashTables), (zend_ulong) hti->ht);
++				phpdbg_btree_delete(&PHPDBG_G(watch_HashTables), (HT_KEY_TYPE) hti->ht);
+ 				phpdbg_remove_watchpoint_btree(&hti->hash_watch);
+ 				phpdbg_deactivate_watchpoint(&hti->hash_watch);
+ 				efree(hti);
+@@ -713,7 +713,7 @@ void phpdbg_queue_element_for_recreation(phpdbg_watch_element *element) {
+ 
+ 	if (!element->parent) {
+ 		/* HERE BE DRAGONS; i.e. we assume HashTable is directly allocated via emalloc() ... (which *should be* the case for every user-accessible array and symbol tables) */
+-		zend_hash_index_add_empty_element(&PHPDBG_G(watch_free), (zend_ulong) element->parent_container);
++		zend_hash_index_add_empty_element(&PHPDBG_G(watch_free), (HT_KEY_TYPE) element->parent_container);
+ 	}
+ }
+ 
+@@ -776,7 +776,7 @@ void phpdbg_dequeue_elements_for_recreation(void) {
+ 
+ 	ZEND_HASH_MAP_FOREACH_PTR(&PHPDBG_G(watch_recreation), element) {
+ 		ZEND_ASSERT(element->flags & (PHPDBG_WATCH_IMPLICIT | PHPDBG_WATCH_RECURSIVE_ROOT | PHPDBG_WATCH_SIMPLE));
+-		if (element->parent || zend_hash_index_find(&PHPDBG_G(watch_free), (zend_ulong) element->parent_container)) {
++		if (element->parent || zend_hash_index_find(&PHPDBG_G(watch_free), (HT_KEY_TYPE) element->parent_container)) {
+ 			zval _zv, *zv = &_zv;
+ 			if (element->parent) {
+ 				ZEND_ASSERT(element->parent->watch->type == WATCH_ON_ZVAL || element->parent->watch->type == WATCH_ON_BUCKET);
+@@ -1015,9 +1015,10 @@ void phpdbg_check_watchpoint(phpdbg_watchpoint_t *watch) {
+ 		zend_string *str;
+ 		zend_long idx;
+ 		zval *zv;
++
+ 		ZEND_HASH_MAP_FOREACH_PTR(&watch->elements, element) {
+ 			if (element->flags & PHPDBG_WATCH_RECURSIVE) {
+-				phpdbg_btree_result *res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (zend_ulong) HT_WATCH_HT(watch));
++				phpdbg_btree_result *res = phpdbg_btree_find(&PHPDBG_G(watch_HashTables), (HT_KEY_TYPE) HT_WATCH_HT(watch));
+ 				phpdbg_watch_ht_info *hti = res ? res->ptr : NULL;
+ 
+ 				ZEND_HASH_REVERSE_FOREACH_KEY_VAL(HT_WATCH_HT(watch), idx, str, zv) {
+@@ -1121,7 +1122,7 @@ void phpdbg_check_watchpoint(phpdbg_watchpoint_t *watch) {
+ }
+ 
+ void phpdbg_reenable_memory_watches(void) {
+-	zend_ulong page;
++	HT_KEY_TYPE page;
+ 	phpdbg_btree_result *res;
+ 	phpdbg_watchpoint_t *watch;
+ 
+@@ -1144,7 +1145,7 @@ void phpdbg_reenable_memory_watches(void) {
+ 				} else
+ #endif
+ 				{
+-					mprotect((void *) page, phpdbg_pagesize, PROT_READ);
++					mprotect(zend_mm_page_ptr((void *) page), phpdbg_pagesize, PROT_READ);
+ 				}
+ 			}
+ 		}
+@@ -1154,7 +1155,7 @@ void phpdbg_reenable_memory_watches(void) {
+ 
+ int phpdbg_print_changed_zvals(void) {
+ 	int ret;
+-	zend_ulong page;
++	HT_KEY_TYPE page;
+ 	phpdbg_watchpoint_t *watch;
+ 	phpdbg_btree_result *res;
+ 	HashTable *mem_list = NULL;
+@@ -1204,7 +1205,7 @@ void phpdbg_watch_efree(void *ptr) {
+ 
+ 	/* only do expensive checks if there are any watches at all */
+ 	if (zend_hash_num_elements(&PHPDBG_G(watch_elements))) {
+-		if ((result = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (zend_ulong) ptr))) {
++		if ((result = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), (HT_KEY_TYPE) ptr))) {
+ 			phpdbg_watchpoint_t *watch = result->ptr;
+ 			if (watch->type != WATCH_ON_HASHDATA) {
+ 				phpdbg_remove_watchpoint(watch);
+@@ -1224,14 +1225,14 @@ void phpdbg_watch_efree(void *ptr) {
+ 		}
+ 
+ 		/* special case watchpoints as they aren't on ptr but on ptr + HT_WATCH_OFFSET */
+-		if ((result = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), HT_WATCH_OFFSET + (zend_ulong) ptr))) {
++		if ((result = phpdbg_btree_find(&PHPDBG_G(watchpoint_tree), HT_WATCH_OFFSET + (HT_KEY_TYPE) ptr))) {
+ 			phpdbg_watchpoint_t *watch = result->ptr;
+ 			if (watch->type == WATCH_ON_HASHTABLE) {
+ 				phpdbg_remove_watchpoint(watch);
+ 			}
+ 		}
+ 
+-		zend_hash_index_del(&PHPDBG_G(watch_free), (zend_ulong) ptr);
++		zend_hash_index_del(&PHPDBG_G(watch_free), (HT_KEY_TYPE) ptr);
+ 	}
+ 
+ 	if (PHPDBG_G(original_free_function)) {
+diff --git sapi/phpdbg/phpdbg_watch.h sapi/phpdbg/phpdbg_watch.h
+index 1aa4161a648..f383ab63a07 100644
+--- sapi/phpdbg/phpdbg_watch.h
++++ sapi/phpdbg/phpdbg_watch.h
+@@ -141,7 +141,11 @@ void phpdbg_watch_efree(void *ptr);
+ static long phpdbg_pagesize;
+ 
+ static zend_always_inline void *phpdbg_get_page_boundary(void *addr) {
++#ifdef PHP_HAVE_BUILTIN_ALIGN_DOWN
++	return __builtin_align_down(addr, phpdbg_pagesize);
++#else
+ 	return (void *) ((size_t) addr & ~(phpdbg_pagesize - 1));
++#endif
+ }
+ 
+ static zend_always_inline size_t phpdbg_get_total_page_size(void *addr, size_t size) {
