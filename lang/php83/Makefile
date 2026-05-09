@@ -55,6 +55,8 @@ OPTIONS_EXCLUDE_powerpc64=	${OPTIONS_EXCLUDE_${ARCH}_${OSREL:R}}
 OPTIONS_EXCLUDE_powerpc64_12=	DTRACE
 OPTIONS_EXCLUDE_riscv64=	DTRACE
 OPTIONS_EXCLUDE_sparc64=	DTRACE
+# dtrace support doesn't compile on purecap currently due to ABI mismatch in the clang-cpp wrapper
+OPTIONS_EXCLUDE_purecap=	DTRACE
 NO_OPTIONS_SORT=	yes
 OPTIONS_SUB=			yes
 
@@ -85,7 +87,8 @@ IPV6_CONFIGURE_OFF=	--disable-ipv6
 LINKTHR_LIBS=		-lpthread
 NOASLR_USES=	elfctl
 MYSQLND_CONFIGURE_ON=	--enable-mysqlnd
-PCRE_BUILD_DEPENDS=	re2c>0:devel/re2c
+# currently purecap re2c is broken, so use the hybrid build everywhere
+PCRE_BUILD_DEPENDS=	${LOCALBASE64}/bin/re2c:devel/re2c
 PCRE_CONFIGURE_ON=	--with-external-pcre=${LOCALBASE}
 PCRE_PLIST_SUB=	BUNDLED_PCRE="@comment "
 PCRE_PLIST_SUB_OFF=	BUNDLED_PCRE=""
@@ -125,7 +128,8 @@ ELF_FEATURES+=+noaslr:sapi/fpm/php-fpm
 
 .include <bsd.port.pre.mk>
 
-.if ${ARCH} == riscv64
+# pcre jit doesn't support purecap
+.if ${ARCH} == riscv64 || ${ABI:Mpurecap}
 CONFIGURE_ARGS+=	--without-pcre-jit
 .endif
 
