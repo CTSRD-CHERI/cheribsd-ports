@@ -9,7 +9,7 @@ GH_PROJECT=	gdb
 GH_TAGNAME=	${GDB_COMMIT}
 
 MAINTAINER=	konrad.witaszczyk@cl.cam.ac.uk
-COMMENT?=	GNU Project Debugger with support for the Arm Morello architecture
+COMMENT?=	GNU Project Debugger with support for the Arm Morello and CHERI-RISC-V architectures
 WWW=		https://github.com/CTSRD-CHERI/gdb
 
 .ifndef SLAVE_PORT
