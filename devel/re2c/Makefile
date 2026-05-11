@@ -9,6 +9,9 @@ WWW=		https://re2c.org/
 
 LICENSE=	PD
 
+BROKEN_purecap=	various issues
+USE_PKG64=	1
+
 TEST_DEPENDS=	bash:shells/bash
 
 USES=		cmake cpe python:test shebangfix tar:xz
