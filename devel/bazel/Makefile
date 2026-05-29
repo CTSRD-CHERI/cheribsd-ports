@@ -49,6 +49,8 @@ pre-patch:
 		${FILESDIR}/extra-patch-upb_bazel_build__defs.bzl \
 		${WRKSRC}/third_party/grpc/
 
+BSD_CC_TOOLCHAIN_CONFIG=	${WRKSRC}/tools/cpp/bsd_cc_toolchain_config.bzl
+
 # Have the location of the system-wide rc file reside ${ETCDIR}.
 # Also adapt the sample file to disable persistent java workers as they
 # do not work reliably on FreeBSD.
@@ -68,6 +70,42 @@ post-patch:
 		${WRKSRC}/src/main/java/com/google/devtools/build/lib/bazel/rules/python/python_stub_template.txt
 	@${REINPLACE_CMD} -e 's|%%JAVA_HOME%%|${JAVA_HOME}|' \
 		${WRKSRC}/src/main/cpp/blaze_util_bsd.cc
+	@if [ -n "${AR}" ] && ${WHICH} -s $$(basename ${AR}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/ar|$$(${WHICH} $$(basename ${AR}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${CPP}" ] && ${WHICH} -s $$(basename ${CPP}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/cpp|$$(${WHICH} $$(basename ${CPP}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${CC}" ] && ${WHICH} -s $$(basename ${CC}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/clang|$$(${WHICH} $$(basename ${CC}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${LD}" ] && ${WHICH} -s $$(basename ${LD}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/ld|$$(${WHICH} $$(basename ${LD}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${NM}" ] && ${WHICH} -s $$(basename ${NM}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/nm|$$(${WHICH} $$(basename ${NM}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${OBJCOPY}" ] && ${WHICH} -s $$(basename ${OBJCOPY}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/objcopy|$$(${WHICH} $$(basename ${OBJCOPY}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${OBJDUMP}" ] && ${WHICH} -s $$(basename ${OBJDUMP}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/objdump|$$(${WHICH} $$(basename ${OBJDUMP}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@if [ -n "${STRIP_CMD}" ] && ${WHICH} -s $$(basename ${STRIP_CMD}); then \
+		${REINPLACE_CMD} -e "s|/usr/bin/strip|$$(${WHICH} $$(basename ${STRIP_CMD}))|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	fi
+	@for dir in "${BAZEL_CXX_BUILTIN_INCLUDE_DIRECTORIES}"; do \
+		${REINPLACE_CMD} -e "s|cxx_builtin_include_directories = \[\".*\"\]|&\\n\        cxx_builtin_include_directories \+= \[\"$${dir}\"\]|" \
+			${BSD_CC_TOOLCHAIN_CONFIG}; \
+	done;
 
 do-build:
 	@${MKDIR} ${WRKDIR}/bazel_tmp
