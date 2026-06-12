@@ -1498,6 +1498,7 @@
     SUBDIR += llvm-devel
     SUBDIR += llvm-morello
     SUBDIR += llvm-morello-c18n
+    SUBDIR += llvm-morello-c18n-cpm-2026h1
     SUBDIR += llvm-morello-csa
     SUBDIR += llvm10
     SUBDIR += llvm11
