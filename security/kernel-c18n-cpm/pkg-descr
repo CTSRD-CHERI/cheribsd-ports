@@ -1,0 +1,16 @@
+The kernel compartmentalization model isolates parts of the kernel and kernel
+modules according to their link-time policies. The compartmentalized kernel
+included in this package is equivalent to GENERIC-MORELLO-PURECAP with the
+addition of the kernel compartmentalization mechanism. Non-debug, benchmark and
+non-debug benchmark variants of the kernel are also included in the package.
+
+This experimental kernel is developed on top of security/kernel-c18n as part of
+the DARPA CPM programme [1] and uses automatically generated policies from BBN
+[2], as opposed to engineered policies used by security/kernel-c18n. It is
+maintained in the separate cpm-kernel-c18n-2026h1 branch of CheriBSD [3] with
+its own snapshots [4].
+
+[1] https://www.darpa.mil/research/programs/compartmentalization-and-privilege-management
+[2] https://www.rtx.com/news/news-center/2024/11/07/darpa-taps-rtx-to-strengthen-cyber-resiliency
+[3] https://github.com/CTSRD-CHERI/cheribsd/tree/cpm-kernel-c18n-2026h1
+[4] https://download.cheribsd.org/snapshots/cpm-kernel-c18n-2026h1/arm64/aarch64c/
