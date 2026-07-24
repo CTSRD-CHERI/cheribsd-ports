@@ -169,7 +169,9 @@ if [ $CHERIBSD_VERSION -gt 0 ]; then
 		if [ "$CHERIBSD_VERSION" -ge 20250301 ]; then
 			codeptr_flags="-cheri-codeptr-relocs"
 		fi
-		if [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
+		if [ "$CHERIBSD_VERSION" -ge 20260801 ]; then
+			tls_flags="-cheri-tgot-tls"
+		elif [ "$CHERIBSD_VERSION" -ge 20260206 ]; then
 			tls_flags="-cheri-tgot-tls=compat"
 		fi
 		# Some compiler invocations (e.g., "clang -v") don't consume
