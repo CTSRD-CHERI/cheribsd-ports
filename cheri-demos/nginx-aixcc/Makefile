@@ -1,11 +1,13 @@
-PORTNAME=	nginx-cheri
+PORTNAME=	nginx-aixcc
 PORTVERSION=	${NGINX_RELEASE}.d${SNAPDATE}
 PORTREVISION=	0
 CATEGORIES=	www
 
 MAINTAINER=	alfredo.mazzinghi@cl.cam.ac.uk
-COMMENT=	CHERI port of the nginx WWW server
+COMMENT=	CHERI port of the nginx WWW server with vulnerabilities added by the DARPA AIxCC program.
 WWW=		https://cheribsd.org/
+
+USES+=	vulnerable
 
 USE_GITHUB=	yes
 GH_ACCOUNT=	CTSRD-CHERI
@@ -23,7 +25,7 @@ CFLAGS+=	-cheri-bounds=subobject-safe -DWITH_SUBOBJECT_SAFE
 
 .include "${.CURDIR}/Makefile.snapshot"
 
-MASTERDIR=	${.CURDIR}/../nginx
+MASTERDIR=	${.CURDIR}/../../www/nginx
 DISTINFO_FILE=	${.CURDIR}/distinfo
 
 # The HTTPV3 option must be excluded as it is not supported by the
