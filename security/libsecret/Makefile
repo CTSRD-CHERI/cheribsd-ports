@@ -1,27 +1,35 @@
 PORTNAME=	libsecret
-PORTVERSION=	0.20.5
+PORTVERSION=	0.21.7
 PORTREVISION=	2
 CATEGORIES=	security gnome
 MASTER_SITES=	GNOME
+DIST_SUBDIR=	gnome
 
 MAINTAINER=	gnome@FreeBSD.org
 COMMENT=	Library to access the secret service API
-WWW=		https://wiki.gnome.org/Projects/Libsecret/
+WWW=		https://gitlab.gnome.org/GNOME/libsecret
 
-LICENSE=	LGPL21
+LICENSE=	APACHE20 GPLv2+ LGPL21+
+LICENSE_COMB=	multi
 
-BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}gi-docgen>0:textproc/py-gi-docgen@${PY_FLAVOR} \
-		docbook-xsl>=0:textproc/docbook-xsl
+BUILD_DEPENDS=	docbook-xsl>=0:textproc/docbook-xsl
 LIB_DEPENDS=	libgcrypt.so:security/libgcrypt \
 		libgpg-error.so:security/libgpg-error
 
-USES=		compiler gnome meson pkgconfig python tar:xz vala:build
-USE_GNOME=	glib20 intltool introspection:build libxslt:build
+USES=		compiler gettext-runtime gnome meson pkgconfig python tar:xz vala:build
+USE_GNOME=	glib20 introspection:build libxslt:build
 
-.include <bsd.port.pre.mk>
+MESON_ARGS=	-Dbash_completion=disabled
+# see PR 287429 / https://gitlab.gnome.org/GNOME/libsecret/-/issues/106
+MESON_ARGS+=	-Dc_args="-DHAVE_CMSGCRED"
+PIE_UNSAFE=	yes
 
-.if ${COMPILER_TYPE} == clang
-CFLAGS+=	-Wno-incompatible-function-pointer-types
-.endif
+OPTIONS_DEFINE=	DOCS NLS
+OPTIONS_SUB=	yes
 
-.include <bsd.port.post.mk>
+DOCS_BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}gi-docgen>0:textproc/py-gi-docgen@${PY_FLAVOR}
+DOCS_MESON_TRUE=	gtk_doc
+NLS_EXTRA_PATCHES_OFF=	${PATCHDIR}/extra-patch-meson.build
+NLS_USES=		gettext-tools
+
+.include <bsd.port.mk>
